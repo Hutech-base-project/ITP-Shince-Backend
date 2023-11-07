@@ -84,7 +84,7 @@ public class CategoriesController {
 	}
 	
 	@PostMapping("/Category")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('CATEGORY') or hasRole('ADMIN')")
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('CATEGORY') or hasRole('ADMIN')")
 	public ResponseEntity<?> create_category(@RequestBody CategoryRequest dtoRequest){
 		try {
 			Date date = Date.from(Instant.now());
