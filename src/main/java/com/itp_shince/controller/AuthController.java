@@ -24,14 +24,18 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itp_shince.config.TwilioConfig;
 import com.itp_shince.dto.reponse.JwtResponse;
 import com.itp_shince.dto.reponse.ObjectReponse;
 import com.itp_shince.dto.reponse.TokenRefreshResponse;
+import com.itp_shince.dto.request.CheckLoginRequest;
 import com.itp_shince.dto.request.ForgotPasswordRequest;
 import com.itp_shince.dto.request.LoginRequest;
 import com.itp_shince.dto.request.OtpRequest;
@@ -57,7 +61,7 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureException;
 import io.jsonwebtoken.UnsupportedJwtException;
 
-@CrossOrigin
+@CrossOrigin(origins = "http://localhost:3000")
 @Controller
 @RequestMapping("/auth")
 public class AuthController {
@@ -95,10 +99,12 @@ public class AuthController {
 
 	HttpHeaders responseHeaders = new HttpHeaders();
 
+	ObjectMapper mapper = new ObjectMapper();
+
 	@PostMapping("/signin")
-	public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+	public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
 		try {
-			
+			session = request.getSession();
 			Users user = userService.getByPhoneNumber(loginRequest.getPhoneNumber());
 			if (user != null) {
 				OtpRequest otp  = new OtpRequest(loginRequest.getOtp(),loginRequest.getPhoneNumber());
@@ -119,7 +125,8 @@ public class AuthController {
 							.collect(Collectors.toList());
 					RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId(), jwt);
 					JwtResponse jwtResponse = new JwtResponse(jwt, refreshToken.getJwtId(), userDetails.getId(),
-							userDetails.getUsername(), userDetails.getPhoneNumber(), roles);
+							userDetails.getUsername(), userDetails.getPhoneNumber(), roles,request);
+					request.getSession().setAttribute(jwtResponse.getId()+jwtResponse.getUserName(), jwtResponse);
 					ObjectReponse objectReponse = new ObjectReponse("Success", 200, jwtResponse, 120, "Minute");
 					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
 				}			
@@ -133,7 +140,25 @@ public class AuthController {
 			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 		}
 	}
-
+	
+	@PostMapping("/checkLogin")
+	public ResponseEntity<?> checkUser(@RequestBody CheckLoginRequest checkLoginRequest, HttpServletRequest request) {
+		try {
+			Users user = userService.getByPhoneNumber(checkLoginRequest.getPhoneNumber());
+			if (user != null) {
+					authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(user.getUsPhoneNo(), checkLoginRequest.getPassword()));
+					ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
+					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);		
+			} else {
+				ObjectReponse objectReponse = new ObjectReponse("Phone number or Password error", 404, 0, 120,
+						"Minute");
+				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
+			}
+		} catch (Exception e) {
+			ObjectReponse objectReponse = new ObjectReponse("Phone number or Password error", 400, 0, 120, "Minute");
+			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
+		}
+	}
 
 	@PostMapping("/refreshtoken")
 	public ResponseEntity<?> refreshtoken(@RequestBody TokenRefreshRequest request) {
@@ -279,8 +304,8 @@ public class AuthController {
 		}
 	}
 
-	@PostMapping("/generateOTP")
-	public ResponseEntity<?> generateOTP(@RequestBody String phoneNumber, HttpServletRequest request) {
+	@PostMapping("/generateOTP/{phoneNumber}")
+	public ResponseEntity<?> generateOTP(@PathVariable("phoneNumber") String phoneNumber, HttpServletRequest request) {
 		try {
 			session = request.getSession();
 			Date dateNow = Date.from(Instant.now());
@@ -319,10 +344,11 @@ public class AuthController {
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
 			} else {
 				ObjectReponse objectReponse = new ObjectReponse(
-						"Send OTP multiple times, please try again after 15 minutes", 400, 0, 120, "Minute");
-				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
+						"Send OTP multiple times, please try again after 15 minutes", 404, 0, 120, "Minute");
+				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
 			}
 		} catch (Exception e) {
+			System.out.print(e.getMessage());
 			ObjectReponse objectReponse = new ObjectReponse("Invalid phone number", 400, 0, 120, "Minute");
 			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 		}
@@ -340,7 +366,6 @@ public class AuthController {
 			int serverOtp = otpService.getOtp(otp.getPhoneNumber());
 			if (serverOtp > 0) {
 				if (Integer.parseInt(otp.getOtp()) == serverOtp) {
-					otpService.clearOTP(otp.getPhoneNumber());
 					ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
 					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
 				} else {
@@ -358,6 +383,27 @@ public class AuthController {
 		}
 	}
 
+	@GetMapping("/Session/{id}")
+	public ResponseEntity<?> getSessionById(@PathVariable("id") String id, HttpServletRequest request){		
+		try {
+			session = request.getSession();			
+			if(session.getAttribute(id) != null) {
+				JwtResponse dtoReponse = (JwtResponse) session.getAttribute(id);
+				ObjectReponse objectReponse = new ObjectReponse("Success", 200,dtoReponse ,120, "Minute");
+				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
+			}else {
+				ObjectReponse objectReponse = new ObjectReponse("Session could not be found", 404,0 ,120, "Minute");
+				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
+			}
+			
+		} catch (Exception e) {
+			System.out.print(e.getMessage());
+			ObjectReponse objectReponse = new ObjectReponse("Connect server fail", 500, 0,
+					120, "Minute");
+			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
+		}	
+	}
+	
 	private ObjectReponse validateOtp(OtpRequest otp) {
 		// Validate the Otp
 		if (Integer.parseInt(otp.getOtp()) >= 0 && otp.getPhoneNumber() != null) {

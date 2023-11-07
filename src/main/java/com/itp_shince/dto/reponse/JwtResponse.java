@@ -2,6 +2,8 @@
 
 import java.util.List;
 
+import javax.servlet.http.HttpServletRequest;
+
 public class JwtResponse {
 	private String token;
 	private String type = "Bearer";
@@ -10,6 +12,7 @@ public class JwtResponse {
 	private String userName;
 	private String phoneNumber;
 	private List<String> roles;
+	private HttpServletRequest request;
 
 	public JwtResponse(String accessToken, String refreshToken, String id, String username, String phoneNumber,List<String> roles) {
 		this.token = accessToken;
@@ -18,6 +21,16 @@ public class JwtResponse {
 		this.userName = username;
 		this.phoneNumber = phoneNumber;
 		this.roles = roles;
+	}
+	
+	public JwtResponse(String accessToken, String refreshToken, String id, String username, String phoneNumber,List<String> roles,HttpServletRequest request) {
+		this.token = accessToken;
+		this.refreshToken = refreshToken;
+		this.id = id;
+		this.userName = username;
+		this.phoneNumber = phoneNumber;
+		this.roles = roles;
+		this.request = request;
 	}
 
 	public String getAccessToken() {

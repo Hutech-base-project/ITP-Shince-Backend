@@ -24,8 +24,8 @@ public class UserService extends ServiceAbstract<UserRepository, Users, String> 
 	public Integer getCountUserByDate(LocalDate date) {
 		return repository.countUserByDate(date);
 	}
-	public Users getByPhoneNumber(String email) {
-		return repository.getUserByPhoneNumber(email);
+	public Users getByPhoneNumber(String phoneNumber) {
+		return repository.getUserByPhoneNumber(phoneNumber);
 	}
 	
 }

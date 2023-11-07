@@ -21,7 +21,6 @@ import javax.persistence.TemporalType;
 @Entity
 @Table(name = "whish_list", catalog = "itpshince")
 public class WhishList implements java.io.Serializable {
-
 	private Integer whlId;
 	private Product product;
 	private Serce serce;
