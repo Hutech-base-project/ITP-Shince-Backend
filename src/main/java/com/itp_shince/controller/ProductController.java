@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itp_shince.dto.reponse.ObjectReponse;
+import com.itp_shince.dto.reponse.ProductImgReponse;
 import com.itp_shince.dto.reponse.ProductReponse;
 import com.itp_shince.dto.request.ProductImageRequest;
 import com.itp_shince.dto.request.ProductRequest;
@@ -70,6 +72,7 @@ public class ProductController {
 	public ResponseEntity<?> getAll() {
 		try {
 			List<Product> entityList = service.getAll();
+			List<ProductImage> listProductImages = serviceProImg.getAll();
 			for (Product entity : entityList) {
 				if (entity.getProQuantity() <= 0) {
 					entity.setProStatus("Out Of Stock");
@@ -81,11 +84,19 @@ public class ProductController {
 					.collect(Collectors.toList());
 
 			for (Product entity : entityList) {
+				List<ProductImgReponse> list = new ArrayList<>();
+				for (ProductImage image : listProductImages) {
+					if (image.getProduct().getProId().equals(entity.getProId())) {
+						list.add(new ProductImgReponse(image.getProImgId(), image.getProImgPath()));
+					}
+				}
 				for (ProductReponse dto : dtos) {
 					if (dto.getProId().equals(entity.getProId())) {
 						dto.setCategory_id(entity.getCategory().getCateId());
+						dto.setListImg(list);
 					}
 				}
+
 			}
 			ObjectReponse objectReponse = new ObjectReponse("Success", 200, dtos, 120, "Minute");
 			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
@@ -120,7 +131,7 @@ public class ProductController {
 	}
 
 	@PostMapping(value = "/Product")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('PRODUCT') or hasRole('ADMIN')")
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('PRODUCT') or hasRole('ADMIN')")
 	public ResponseEntity<?> create(@RequestPart(required = false) String json,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile file,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile[] Mutifile) {
@@ -131,9 +142,15 @@ public class ProductController {
 			Product entityRequest = modelMapper.map(dtoRequest, Product.class);
 			List<Product> entityList = service.getAll();
 			if (entityRequest.getProName() != null && cate != null && entityRequest.getProBrand() != null
-					&& entityRequest.getProContent() != null && entityRequest.getProQuantity() >= 0
-					&& entityList.stream().filter(n -> n.getProName().equals(entityRequest.getProName())) == null
-					&& file != null) {
+					&& entityRequest.getProContent() != null && entityRequest.getProQuantity() >= 0 && file != null && Mutifile != null && Mutifile.length == 4 ) {
+				if (entityList.size() > 0) {
+					if (entityList.stream().filter(n -> n.getProName().equals(entityRequest.getProName())) == null) {
+						ObjectReponse objectReponse = new ObjectReponse(
+								"This product cannot be created, please check the product information", 400, 0, 120,
+								"Minute");
+						return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
+					}
+				}
 				entityRequest.setProId(idProIdentity());
 				entityRequest.setCategory(cate);
 				entityRequest.setCreatedAt(date);
@@ -156,7 +173,6 @@ public class ProductController {
 					entityRequest.setProStatus("Out Of Stock");
 				}
 				service.create(entityRequest);
-				if (Mutifile != null) {
 					File folderMulti = new File("ImagesChildent/Products/" + entityRequest.getProId());
 					folderMulti.mkdirs();
 					Path pathChild = Paths.get(folderMulti.getPath());
@@ -165,11 +181,10 @@ public class ProductController {
 						Files.copy(inputChildStream, pathChild.resolve(childFile.getOriginalFilename()),
 								StandardCopyOption.REPLACE_EXISTING);
 						String imgPath = entityRequest.getProId() + "/" + childFile.getOriginalFilename().toLowerCase();
-						ProductImageRequest entityChildRequest = new ProductImageRequest(entityRequest.getProId(),
+						ProductImageRequest entityChildRequest = new ProductImageRequest(idProImgIdentity(),
 								entityRequest, imgPath, date, false);
 						ProductImage entityConvertRequest = modelMapper.map(entityChildRequest, ProductImage.class);
 						serviceProImg.create(entityConvertRequest);
-					}
 				}
 				ObjectReponse objectReponse = new ObjectReponse("Success", 201, 0, 120, "Minute");
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.CREATED);
@@ -186,7 +201,7 @@ public class ProductController {
 	}
 
 	@PutMapping(value = "/Product/{id}")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('PRODUCT') or hasRole('ADMIN')")
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('PRODUCT') or hasRole('ADMIN')")
 	public ResponseEntity<?> update(@PathVariable("id") String id, @RequestPart(required = false) String json,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile file,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile[] Mutifile) {
@@ -217,19 +232,19 @@ public class ProductController {
 					entityRequest.setCategory(cate);
 					if (entityRequest.getProName() == null || entityRequest.getProName().isEmpty()) {
 						entityRequest.setProName(entity.getProName());
-					} 
+					}
 					if (entityRequest.getProPrice() == 0) {
 						entityRequest.setProPrice(entity.getProPrice());
-					} 
+					}
 					if (entityRequest.getProContent() == null || entityRequest.getProContent().isEmpty()) {
 						entityRequest.setProContent(entity.getProContent());
-					}  
+					}
 					if (entityRequest.getProBrand() == null || entityRequest.getProBrand().isEmpty()) {
 						entityRequest.setProBrand(entity.getProBrand());
-					} 
+					}
 					if (entityRequest.getProTurnOn() == null) {
 						entityRequest.setProTurnOn(entity.getProTurnOn());
-					} 
+					}
 					if (entityRequest.getProStatus() == null || entityRequest.getProStatus().isEmpty()) {
 						entityRequest.setProStatus(entity.getProStatus());
 					}
@@ -253,45 +268,35 @@ public class ProductController {
 							entityRequest.setFeatureImgPath(
 									entityRequest.getProId() + "/" + file.getOriginalFilename().toLowerCase());
 						}
-						if (serviceProImg.countProImgByProId(id) == 0 && Mutifile != null) {
-							File folderMulti = new File("ImagesChildent/Products/" + entityRequest.getProId());
-							folderMulti.mkdirs();
-							Path pathChild = Paths.get(folderMulti.getPath());
-							for (MultipartFile childFile : Mutifile) {
-								InputStream inputChildStream = childFile.getInputStream();
-								Files.copy(inputChildStream, pathChild.resolve(childFile.getOriginalFilename()),
-										StandardCopyOption.REPLACE_EXISTING);
-								String imgPath = entityRequest.getProId() + "/"
-										+ childFile.getOriginalFilename().toLowerCase();
-								ProductImageRequest entityChildRequest = new ProductImageRequest(idProImgIdentity(),
-										entityRequest, imgPath, date, false);
-								ProductImage entityConvertRequest = modelMapper.map(entityChildRequest,
-										ProductImage.class);
-								serviceProImg.create(entityConvertRequest);
-							}
-						} else {
-							if (idImgChild != null) {
-								if (idImgChild.size() > 0) {
-									for (int i = 0; i < Mutifile.length; i++) {
-										String idImg = idImgChild.get(i);
-										ProductImage proImg = serviceProImg.getById(idImg);
-										File directoryToDelete = new File("ImagesChildent/Products/" + id);
-										FileSystemUtils.deleteRecursively(directoryToDelete);
-										Path path = Paths.get("ImagesChildent/Products/" + id);
-										InputStream inputStream = Mutifile[i].getInputStream();
-										Files.copy(inputStream, path.resolve(Mutifile[i].getOriginalFilename()),
-												StandardCopyOption.REPLACE_EXISTING);
-										proImg.setProImgPath(
-												id + "/" + Mutifile[i].getOriginalFilename().toLowerCase());
-										proImg.setUpdatedAt(date);
-										serviceProImg.create(proImg);
+						if (idImgChild != null && Mutifile!= null) {
+							if (idImgChild.size() ==  Mutifile.length ) {
+								for (String string : idImgChild) {
+									if(serviceProImg.getById(string) == null ) {
+										ObjectReponse objectReponse = new ObjectReponse(
+												"This product cannot be updated, please check the product information", 400,
+												0, 120, "Minute");
+										return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 									}
-								} else {
-									ObjectReponse objectReponse = new ObjectReponse(
-											"This product cannot be updated, please check the product information", 400,
-											0, 120, "Minute");
-									return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 								}
+								for (int i = 0; i < Mutifile.length; i++) {
+									String idImg = idImgChild.get(i);
+									ProductImage proImg = serviceProImg.getById(idImg);
+									File directoryToDelete = new File("ImagesChildent/Products/" + idImgChild.get(i));
+									FileSystemUtils.deleteRecursively(directoryToDelete);
+									Path path = Paths.get("ImagesChildent/Products/" + id);
+									InputStream inputStream = Mutifile[i].getInputStream();
+									Files.copy(inputStream, path.resolve(Mutifile[i].getOriginalFilename()),
+											StandardCopyOption.REPLACE_EXISTING);
+									proImg.setProImgPath(
+											id + "/" + Mutifile[i].getOriginalFilename().toLowerCase());
+									proImg.setUpdatedAt(date);
+									serviceProImg.create(proImg);
+								}
+							} else {
+								ObjectReponse objectReponse = new ObjectReponse(
+										"This product cannot be updated, please check the product information", 400,
+										0, 120, "Minute");
+								return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 							}
 						}
 						entityRequest.setUpdatedAt(date);
@@ -317,13 +322,14 @@ public class ProductController {
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
 			}
 		} catch (Exception e) {
+			System.out.print(e.getMessage());
 			ObjectReponse objectReponse = new ObjectReponse(e.toString(), 500, 0, 120, "Minute");
 			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
 	@DeleteMapping(value = "/Product/{id}")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('PRODUCT') or hasRole('ADMIN')")
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('PRODUCT') or hasRole('ADMIN')")
 	public ResponseEntity<?> deleteProduct(@PathVariable("id") String id) {
 		try {
 			Date date = Date.from(Instant.now());

@@ -249,9 +249,9 @@ public class OrderProController {
 					OrdersPro entity = service.getById(id);
 					if(entity.getOrProStatus().equals("Wait for confirmation") && (dto.getOrProStatus().equals("Cancelled") || dto.getOrProStatus().equals("Confirm"))) {
 						checkStatus = false;
-					}else if(entity.getOrProStatus().equals("Confirm")&& entity.getOrProStatus().equals("Delivery") ){
+					}else if(entity.getOrProStatus().equals("Confirm")&& dto.getOrProStatus().equals("Delivery") ){
 						checkStatus = false;
-					}else if(entity.getOrProStatus().equals("Delivery")&& entity.getOrProStatus().equals("Delivered")){
+					}else if(entity.getOrProStatus().equals("Delivery")&& dto.getOrProStatus().equals("Delivered")){
 						checkStatus = false;
 					}else if(entity.getOrProStatus().equals(dto.getOrProStatus())){
 						checkStatus = false;
@@ -282,7 +282,7 @@ public class OrderProController {
 						return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 					}
 				}else {
-					ObjectReponse objectReponse = new ObjectReponse("This product order cant't update, please check order again", 400,0 ,
+					ObjectReponse objectReponse = new ObjectReponse("This product order can't update, please check order again", 400,0 ,
 							120, "Minute");
 					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 				}
