@@ -2,7 +2,6 @@
 
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
 
 public class JwtResponse {
 	private String token;
@@ -12,7 +11,6 @@ public class JwtResponse {
 	private String userName;
 	private String phoneNumber;
 	private List<String> roles;
-	private HttpServletRequest request;
 
 	public JwtResponse(String accessToken, String refreshToken, String id, String username, String phoneNumber,List<String> roles) {
 		this.token = accessToken;
@@ -23,15 +21,6 @@ public class JwtResponse {
 		this.roles = roles;
 	}
 	
-	public JwtResponse(String accessToken, String refreshToken, String id, String username, String phoneNumber,List<String> roles,HttpServletRequest request) {
-		this.token = accessToken;
-		this.refreshToken = refreshToken;
-		this.id = id;
-		this.userName = username;
-		this.phoneNumber = phoneNumber;
-		this.roles = roles;
-		this.request = request;
-	}
 
 	public String getAccessToken() {
 		return token;
@@ -86,4 +75,26 @@ public class JwtResponse {
 	public void setRefreshToken(String refreshToken) {
 		this.refreshToken = refreshToken;
 	}
+
+	public String getToken() {
+		return token;
+	}
+
+	public void setToken(String token) {
+		this.token = token;
+	}
+
+	public String getType() {
+		return type;
+	}
+
+	public void setType(String type) {
+		this.type = type;
+	}
+
+	public void setRoles(List<String> roles) {
+		this.roles = roles;
+	}
+	
+	
 }

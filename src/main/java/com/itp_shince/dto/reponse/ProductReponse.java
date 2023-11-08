@@ -1,5 +1,7 @@
 package com.itp_shince.dto.reponse;
 
+import java.util.List;
+
 import com.itp_shince.dto.AbstractDTO;
 
 public class ProductReponse extends AbstractDTO<ProductReponse>{
@@ -14,15 +16,16 @@ public class ProductReponse extends AbstractDTO<ProductReponse>{
 	private int proQuantity;
 	private String proStatus;
 	private Boolean isDelete;
+	private List<ProductImgReponse> listImg;
 	
 	
 	
 	public ProductReponse() {
-	}
+	}	
 
 	public ProductReponse(String proId, Integer category_id, String proName, Float proPrice, String featureImgPath,
-			String proContent, String proBrand, Boolean proTurnOn, int proQuantity, String proStatus,
-			Boolean isDelete) {
+			String proContent, String proBrand, Boolean proTurnOn, int proQuantity, String proStatus, Boolean isDelete,
+			List<ProductImgReponse> listImg) {
 		super();
 		this.proId = proId;
 		this.category_id = category_id;
@@ -35,7 +38,10 @@ public class ProductReponse extends AbstractDTO<ProductReponse>{
 		this.proQuantity = proQuantity;
 		this.proStatus = proStatus;
 		this.isDelete = isDelete;
+		this.listImg = listImg;
 	}
+
+
 
 	public String getProId() {
 		return proId;
@@ -108,5 +114,13 @@ public class ProductReponse extends AbstractDTO<ProductReponse>{
 
 	public void setProStatus(String proStatus) {
 		this.proStatus = proStatus;
+	}
+
+	public List<ProductImgReponse> getListImg() {
+		return listImg;
+	}
+
+	public void setListImg(List<ProductImgReponse> listImg) {
+		this.listImg = listImg;
 	}
 }

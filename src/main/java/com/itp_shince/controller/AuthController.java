@@ -50,6 +50,7 @@ import com.itp_shince.model.Users;
 import com.itp_shince.service.OtpService;
 import com.itp_shince.service.RefreshTokenService;
 import com.itp_shince.service.RoleService;
+import com.itp_shince.service.SessionService;
 import com.itp_shince.service.UserRoleService;
 import com.itp_shince.service.UserService;
 import com.twilio.rest.api.v2010.account.Message;
@@ -84,6 +85,9 @@ public class AuthController {
 	public OtpService otpService;
 
 	@Autowired
+	SessionService sessService;
+
+	@Autowired
 	UserRoleService userRoleService;
 
 	@Autowired
@@ -95,27 +99,26 @@ public class AuthController {
 	@Autowired
 	RefreshTokenService refreshTokenService;
 
-	HttpSession session;
-
 	HttpHeaders responseHeaders = new HttpHeaders();
+
+	HttpSession session;
 
 	ObjectMapper mapper = new ObjectMapper();
 
 	@PostMapping("/signin")
-	public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+	public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
 		try {
-			session = request.getSession();
 			Users user = userService.getByPhoneNumber(loginRequest.getPhoneNumber());
 			if (user != null) {
-				OtpRequest otp  = new OtpRequest(loginRequest.getOtp(),loginRequest.getPhoneNumber());
-				ObjectReponse objectOTPReponse =  validateOtp(otp);
+				OtpRequest otp = new OtpRequest(loginRequest.getOtp(), loginRequest.getPhoneNumber());
+				ObjectReponse objectOTPReponse = validateOtp(otp);
 				if (objectOTPReponse.getResponseStatus() == 400) {
 					return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.BAD_REQUEST);
-				}else if(objectOTPReponse.getResponseStatus() == 404) {
+				} else if (objectOTPReponse.getResponseStatus() == 404) {
 					return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.NOT_FOUND);
-				}else if(objectOTPReponse.getResponseStatus() == 500) {
+				} else if (objectOTPReponse.getResponseStatus() == 500) {
 					return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
-				}else {
+				} else {
 					Authentication authentication = authenticationManager.authenticate(
 							new UsernamePasswordAuthenticationToken(user.getUsPhoneNo(), loginRequest.getPassword()));
 					SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -125,11 +128,11 @@ public class AuthController {
 							.collect(Collectors.toList());
 					RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId(), jwt);
 					JwtResponse jwtResponse = new JwtResponse(jwt, refreshToken.getJwtId(), userDetails.getId(),
-							userDetails.getUsername(), userDetails.getPhoneNumber(), roles,request);
-					request.getSession().setAttribute(jwtResponse.getId()+jwtResponse.getUserName(), jwtResponse);
+							userDetails.getUsername(), userDetails.getPhoneNumber(), roles);
+					sessService.saveSession(jwtResponse.getId() + jwtResponse.getUserName(), jwtResponse);
 					ObjectReponse objectReponse = new ObjectReponse("Success", 200, jwtResponse, 120, "Minute");
 					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
-				}			
+				}
 			} else {
 				ObjectReponse objectReponse = new ObjectReponse("Phone number or Password error", 404, 0, 120,
 						"Minute");
@@ -140,15 +143,16 @@ public class AuthController {
 			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 		}
 	}
-	
+
 	@PostMapping("/checkLogin")
 	public ResponseEntity<?> checkUser(@RequestBody CheckLoginRequest checkLoginRequest, HttpServletRequest request) {
 		try {
 			Users user = userService.getByPhoneNumber(checkLoginRequest.getPhoneNumber());
 			if (user != null) {
-					authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(user.getUsPhoneNo(), checkLoginRequest.getPassword()));
-					ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
-					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);		
+				authenticationManager.authenticate(
+						new UsernamePasswordAuthenticationToken(user.getUsPhoneNo(), checkLoginRequest.getPassword()));
+				ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
+				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
 			} else {
 				ObjectReponse objectReponse = new ObjectReponse("Phone number or Password error", 404, 0, 120,
 						"Minute");
@@ -202,8 +206,13 @@ public class AuthController {
 				Users user = userService.getById(entity.getUsers().getUsId());
 				String tokenResponse = jwtUtils.generateTokenFromUsername(user.getUsUserName(), user.getUsId(),
 						user.getUsEmailNo());
-				ObjectReponse objectReponse = new ObjectReponse("Success", 200,
-						new TokenRefreshResponse(tokenResponse, requestRefreshToken), 120, "Minute");
+				TokenRefreshResponse refreshResponse = new TokenRefreshResponse(tokenResponse, requestRefreshToken);
+				JwtResponse dtoReponse = sessService
+						.getSession(entity.getUsers().getUsId() + entity.getUsers().getUsUserName());
+				dtoReponse.setAccessToken(refreshResponse.getAccessToken());
+				dtoReponse.setRefreshToken(refreshResponse.getRefreshToken());
+				sessService.saveSession(dtoReponse.getId() + dtoReponse.getUserName(), dtoReponse);
+				ObjectReponse objectReponse = new ObjectReponse("Success", 200, dtoReponse, 120, "Minute");
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
 			}
 
@@ -224,22 +233,23 @@ public class AuthController {
 		Date date = Date.from(Instant.now());
 		try {
 			if (signUpRequest.getPhoneNumber() != null && signUpRequest.getPassword() != null
-					&& signUpRequest.getUsername() != null) {
+					&& signUpRequest.getUserName() != null) {
 				if (testUsingStrictRegex(signUpRequest.getPhoneNumber())) {
 					if (userService.checkPhoneNumber(signUpRequest.getPhoneNumber())) {
 						return new ResponseEntity<>("Error: Phone number is already in use!", responseHeaders,
 								HttpStatus.NOT_FOUND);
-					}else {
-						OtpRequest otp  = new OtpRequest(signUpRequest.getOtp(),signUpRequest.getPhoneNumber());
-						ObjectReponse objectOTPReponse =  validateOtp(otp);
+					} else {
+						OtpRequest otp = new OtpRequest(signUpRequest.getOtp(), signUpRequest.getPhoneNumber());
+						ObjectReponse objectOTPReponse = validateOtp(otp);
 						if (objectOTPReponse.getResponseStatus() == 400) {
 							return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.BAD_REQUEST);
-						}else if(objectOTPReponse.getResponseStatus() == 404) {
+						} else if (objectOTPReponse.getResponseStatus() == 404) {
 							return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.NOT_FOUND);
-						}else if(objectOTPReponse.getResponseStatus() == 500) {
-							return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
-						}else {
-							Users user = new Users(idUserIentity(), signUpRequest.getUsername(),
+						} else if (objectOTPReponse.getResponseStatus() == 500) {
+							return new ResponseEntity<>(objectOTPReponse, responseHeaders,
+									HttpStatus.INTERNAL_SERVER_ERROR);
+						} else {
+							Users user = new Users(idUserIentity(), signUpRequest.getUserName(),
 									encoder.encode(signUpRequest.getPassword()), signUpRequest.getPhoneNumber());
 							Set<UserRole> roles = new HashSet<>();
 							user.setIsAdmin(false);
@@ -257,8 +267,8 @@ public class AuthController {
 							userService.create(user);
 							ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
 							return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
-						}			
-					}			
+						}
+					}
 				} else {
 					ObjectReponse objectReponse = new ObjectReponse("Invalid phone number", 400, 0, 120, "Minute");
 					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
@@ -275,28 +285,51 @@ public class AuthController {
 		}
 
 	}
-	
+
+	@PostMapping("/checkRegister/{phoneNumber}")
+	public ResponseEntity<?> chekRegister(@PathVariable("phoneNumber") String phoneNumber) {
+		try {
+			if (testUsingStrictRegex(phoneNumber)) {
+				if (userService.checkPhoneNumber(phoneNumber)) {
+					ObjectReponse objectReponse = new ObjectReponse("Error: Phone number is already in use!", 404, 0,
+							120, "Minute");
+					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
+				} else {
+					ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
+					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
+				}
+			} else {
+				ObjectReponse objectReponse = new ObjectReponse("Invalid phone number", 400, 0, 120, "Minute");
+				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
+			}
+		} catch (Exception e) {
+			ObjectReponse objectReponse = new ObjectReponse("Connect server fail", 500, 0, 120, "Minute");
+			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+
+	}
+
 	@PostMapping("/forgot_password")
 	public ResponseEntity<?> processForgotPassword(@RequestBody ForgotPasswordRequest forgotPassword) {
 		try {
-			Users entity = userService.getByPhoneNumber(forgotPassword.getPhoneNumber());	
-			if(entity != null) {
-				OtpRequest otp  = new OtpRequest(forgotPassword.getOtp(),forgotPassword.getPhoneNumber());
-				ObjectReponse objectOTPReponse =  validateOtp(otp);
+			Users entity = userService.getByPhoneNumber(forgotPassword.getPhoneNumber());
+			if (entity != null) {
+				OtpRequest otp = new OtpRequest(forgotPassword.getOtp(), forgotPassword.getPhoneNumber());
+				ObjectReponse objectOTPReponse = validateOtp(otp);
 				if (objectOTPReponse.getResponseStatus() == 400) {
 					return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.NOT_FOUND);
-				}else if(objectOTPReponse.getResponseStatus() == 404) {
+				} else if (objectOTPReponse.getResponseStatus() == 404) {
 					return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.BAD_REQUEST);
-				}else if(objectOTPReponse.getResponseStatus() == 500) {
+				} else if (objectOTPReponse.getResponseStatus() == 500) {
 					return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
-				}else {
+				} else {
 					entity.setUsPassword(encoder.encode(forgotPassword.getPassword()));
 					userService.create(entity);
 					otpService.clearOTP(forgotPassword.getPhoneNumber());
 					ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
 					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
 				}
-			}else {
+			} else {
 				return new ResponseEntity<>("Unregistered email", responseHeaders, HttpStatus.BAD_REQUEST);
 			}
 		} catch (Exception e) {
@@ -353,7 +386,7 @@ public class AuthController {
 			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 		}
 	}
-	
+
 	@PostMapping("/validateOtp")
 	public ResponseEntity<?> checkOtp(@RequestBody OtpRequest otp) {
 		// Validate the Otp
@@ -384,26 +417,24 @@ public class AuthController {
 	}
 
 	@GetMapping("/Session/{id}")
-	public ResponseEntity<?> getSessionById(@PathVariable("id") String id, HttpServletRequest request){		
+	public ResponseEntity<?> getSessionById(@PathVariable("id") String id, HttpServletRequest request) {
 		try {
-			session = request.getSession();			
-			if(session.getAttribute(id) != null) {
-				JwtResponse dtoReponse = (JwtResponse) session.getAttribute(id);
-				ObjectReponse objectReponse = new ObjectReponse("Success", 200,dtoReponse ,120, "Minute");
+			if (sessService.getSession(id) != null) {
+				JwtResponse dtoReponse = sessService.getSession(id);
+				ObjectReponse objectReponse = new ObjectReponse("Success", 200, dtoReponse, 120, "Minute");
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
-			}else {
-				ObjectReponse objectReponse = new ObjectReponse("Session could not be found", 404,0 ,120, "Minute");
+			} else {
+				ObjectReponse objectReponse = new ObjectReponse("Session could not be found", 404, 0, 120, "Minute");
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
 			}
-			
+
 		} catch (Exception e) {
 			System.out.print(e.getMessage());
-			ObjectReponse objectReponse = new ObjectReponse("Connect server fail", 500, 0,
-					120, "Minute");
+			ObjectReponse objectReponse = new ObjectReponse("Connect server fail", 500, 0, 120, "Minute");
 			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
-		}	
+		}
 	}
-	
+
 	private ObjectReponse validateOtp(OtpRequest otp) {
 		// Validate the Otp
 		if (Integer.parseInt(otp.getOtp()) >= 0 && otp.getPhoneNumber() != null) {
