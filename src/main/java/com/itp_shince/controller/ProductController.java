@@ -69,7 +69,7 @@ public class ProductController {
 	ObjectMapper mapper = new ObjectMapper();
 
 	@GetMapping(value = "/Product")
-	public ResponseEntity<?> getAll() {
+	public ResponseEntity<?> get_all_products() {
 		try {
 			List<Product> entityList = service.getAll();
 			List<ProductImage> listProductImages = serviceProImg.getAll();
@@ -106,8 +106,8 @@ public class ProductController {
 		}
 	}
 
-	@GetMapping(value = "/Product/{id}")
-	public ResponseEntity<?> getById(@PathVariable("id") String id) {
+	@GetMapping(value = "/Product/{product_id}")
+	public ResponseEntity<?> get_product_by_id(@PathVariable("product_id") String id) {
 		try {
 			Product entity = service.getById(id);
 			if (service.getById(id) != null) {
@@ -132,7 +132,7 @@ public class ProductController {
 
 	@PostMapping(value = "/Product")
 //	@PreAuthorize("hasRole('MODERATOR') and hasRole('PRODUCT') or hasRole('ADMIN')")
-	public ResponseEntity<?> create(@RequestPart(required = false) String json,
+	public ResponseEntity<?> create_product(@RequestPart(required = false) String json,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile file,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile[] Mutifile) {
 		try {
@@ -141,10 +141,10 @@ public class ProductController {
 			Category cate = serviceCate.getById(dtoRequest.getCategory_id());
 			Product entityRequest = modelMapper.map(dtoRequest, Product.class);
 			List<Product> entityList = service.getAll();
-			if (entityRequest.getProName() != null && cate != null && entityRequest.getProBrand() != null
+			if (entityRequest.getProName() != null && cate != null && entityRequest.getProBrand() != null && entityRequest.getProPrice() > 0
 					&& entityRequest.getProContent() != null && entityRequest.getProQuantity() >= 0 && file != null && Mutifile != null && Mutifile.length == 4 ) {
 				if (entityList.size() > 0) {
-					if (entityList.stream().filter(n -> n.getProName().equals(entityRequest.getProName())) == null) {
+					if (entityList.stream().filter(n -> n.getProName().equals(entityRequest.getProName())&& n.getIsDelete()== false) == null ) {
 						ObjectReponse objectReponse = new ObjectReponse(
 								"This product cannot be created, please check the product information", 400, 0, 120,
 								"Minute");
@@ -200,9 +200,9 @@ public class ProductController {
 		}
 	}
 
-	@PutMapping(value = "/Product/{id}")
+	@PutMapping(value = "/Product/{product_id}")
 //	@PreAuthorize("hasRole('MODERATOR') and hasRole('PRODUCT') or hasRole('ADMIN')")
-	public ResponseEntity<?> update(@PathVariable("id") String id, @RequestPart(required = false) String json,
+	public ResponseEntity<?> update_product(@PathVariable("product_id") String id, @RequestPart(required = false) String json,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile file,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile[] Mutifile) {
 		try {
@@ -230,6 +230,7 @@ public class ProductController {
 					entityRequest.setProId(id);
 					entityRequest.setCreatedAt(entity.getCreatedAt());
 					entityRequest.setCategory(cate);
+					entityRequest.setUpdatedAt(date);
 					if (entityRequest.getProName() == null || entityRequest.getProName().isEmpty()) {
 						entityRequest.setProName(entity.getProName());
 					}
@@ -250,7 +251,7 @@ public class ProductController {
 					}
 					entityRequest.setIsDelete(entity.getIsDelete());
 					if (entityList.stream().filter(
-							n -> n.getProName().equals(entityRequest.getProName()) && n.getProId() != id) != null) {
+							n -> n.getProName().equals(entityRequest.getProName())&& n.getIsDelete() == false && n.getProId() != id) != null) {
 						if (file == null) {
 							entityRequest.setFeatureImgPath(entity.getFeatureImgPath());
 						} else {
@@ -299,7 +300,6 @@ public class ProductController {
 								return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 							}
 						}
-						entityRequest.setUpdatedAt(date);
 						if (entityRequest.getProQuantity() > 0) {
 							entityRequest.setProStatus("Still Stock");
 						} else {
@@ -328,9 +328,9 @@ public class ProductController {
 		}
 	}
 
-	@DeleteMapping(value = "/Product/{id}")
+	@DeleteMapping(value = "/Product/{product_id}")
 //	@PreAuthorize("hasRole('MODERATOR') and hasRole('PRODUCT') or hasRole('ADMIN')")
-	public ResponseEntity<?> deleteProduct(@PathVariable("id") String id) {
+	public ResponseEntity<?> delete_product(@PathVariable("product_id") String id) {
 		try {
 			Date date = Date.from(Instant.now());
 			if (service.getById(id) != null) {

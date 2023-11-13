@@ -28,10 +28,10 @@ public class GetImageController {
 
 	HttpHeaders responseHeaders = new HttpHeaders();
 
-	@GetMapping("/user/{id}/{photo}")
-	@PreAuthorize("hasRole('USER')")
+	@GetMapping("/user/{uesr_id}/{photo}")
+//	@PreAuthorize("hasRole('USER')")
 	@ResponseBody
-	public ResponseEntity<?> getUserImages(@PathVariable("id") String id, @PathVariable("photo") String photo) {
+	public ResponseEntity<?> get_user_images(@PathVariable("uesr_id") String id, @PathVariable("photo") String photo) {
 		if (photo != null || !photo.equals(" ")) {
 			try {
 				Path fileName = Paths.get("Images/Users/" + id, photo);
@@ -47,9 +47,9 @@ public class GetImageController {
 		return ResponseEntity.badRequest().build();
 	}
 
-	@GetMapping("/allUser/{id}/{photo}")
+	@GetMapping("/allUser/{uesr_id}/{photo}")
 	@ResponseBody
-	public ResponseEntity<?> getAllUserImages(@PathVariable("id") String id, @PathVariable("photo") String photo) {
+	public ResponseEntity<?> get_all_user_images(@PathVariable("uesr_id") String id, @PathVariable("photo") String photo) {
 		if (photo != null || !photo.equals(" ")) {
 			try {
 				Path fileName = Paths.get("Images/Users/" + id, photo);
@@ -66,9 +66,9 @@ public class GetImageController {
 		return ResponseEntity.badRequest().build();
 	}
 
-	@GetMapping("/product/{id}/{photo}")
+	@GetMapping("/product/{product_id}/{photo}")
 	@ResponseBody
-	public ResponseEntity<?> getProductImages(@PathVariable("id") String id, @PathVariable("photo") String photo) {
+	public ResponseEntity<?> get_product_images(@PathVariable("product_id") String id, @PathVariable("photo") String photo) {
 		if (photo != null || !photo.equals(" ")) {
 			try {
 				Path fileName = Paths.get("Images/Products/" + id, photo);
@@ -85,9 +85,9 @@ public class GetImageController {
 		return ResponseEntity.badRequest().build();
 	}
 
-	@GetMapping("/product-child/{id}/{photo}")
+	@GetMapping("/product-child/{product_image_id}/{photo}")
 	@ResponseBody
-	public ResponseEntity<?> getProductChildImages(@PathVariable("id") String id, @PathVariable("photo") String photo) {
+	public ResponseEntity<?> get_product_child_images(@PathVariable("product_image_id") String id, @PathVariable("photo") String photo) {
 		if (photo != null || !photo.equals(" ")) {
 			try {
 				Path fileName = Paths.get("ImagesChildent/Products/" + id, photo);
@@ -104,9 +104,9 @@ public class GetImageController {
 		return ResponseEntity.badRequest().build();
 	}
 
-	@GetMapping("/service/{id}/{photo}")
+	@GetMapping("/service/{service_id}/{photo}")
 	@ResponseBody
-	public ResponseEntity<?> getImage(@PathVariable("id") String id, @PathVariable("photo") String photo) {
+	public ResponseEntity<?> get_image(@PathVariable("service_id") String id, @PathVariable("photo") String photo) {
 		if (photo != null || !photo.equals("")) {
 			try {
 				Path filename = Paths.get("Images/Services/" + id, photo);
@@ -123,4 +123,22 @@ public class GetImageController {
 		return ResponseEntity.badRequest().build();
 	}
 
+	@GetMapping("/service-child/{service_image_id}/{photo}")
+	@ResponseBody
+	public ResponseEntity<?> get_service_child_images(@PathVariable("service_image_id") String id, @PathVariable("photo") String photo) {
+		if (photo != null || !photo.equals(" ")) {
+			try {
+				Path fileName = Paths.get("ImagesChildent/Services/" + id, photo);
+				byte[] buffet = Files.readAllBytes(fileName);
+				ByteArrayResource byteArrayResource = new ByteArrayResource(buffet);
+				return ResponseEntity.ok().contentLength(buffet.length)
+						.contentType(MediaType.parseMediaType("image/png")).body(byteArrayResource);
+			} catch (Exception e) {
+				ObjectReponse objectReponse = new ObjectReponse("This image is not exist ", 404, 0,
+						0, "Minute");
+				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
+			}
+		}
+		return ResponseEntity.badRequest().build();
+	}
 }

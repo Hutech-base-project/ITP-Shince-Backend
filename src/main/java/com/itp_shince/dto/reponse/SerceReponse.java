@@ -1,5 +1,7 @@
 package com.itp_shince.dto.reponse;
 
+import java.util.List;
+
 import com.itp_shince.dto.AbstractDTO;
 
 public class SerceReponse extends AbstractDTO<SerceReponse>{
@@ -11,7 +13,7 @@ public class SerceReponse extends AbstractDTO<SerceReponse>{
 	private String seImage;
 	private Boolean seTurnOn;
 	private Boolean isDelete;
-	
+	private List<SerceImageReponse> listImg;
 	
 	
 	public SerceReponse() {
@@ -92,5 +94,13 @@ public class SerceReponse extends AbstractDTO<SerceReponse>{
 
 	public void setIsDelete(Boolean isDelete) {
 		this.isDelete = isDelete;
+	}
+
+	public List<SerceImageReponse> getListImg() {
+		return listImg;
+	}
+
+	public void setListImg(List<SerceImageReponse> listImg) {
+		this.listImg = listImg;
 	}	
 }

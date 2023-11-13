@@ -57,7 +57,7 @@ public class OrderSerController {
 
 	@GetMapping(value = "/OrdersSer")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ORDER_SERVICE') or hasRole('ADMIN')")
-	public ResponseEntity<?> getAll() {
+	public ResponseEntity<?> get_all_bookings() {
 		try {
 			List<OrdersSer> entityList = service.getAll();
 			List<OrdersSerReponse> dtos = entityList.stream().map(user -> modelMapper.map(user, OrdersSerReponse.class))
@@ -91,9 +91,9 @@ public class OrderSerController {
 		}
 	}
 
-	@GetMapping(value = "/OrdersSer/User/{userId}")
+	@GetMapping(value = "/OrdersSer/User/{user_id}")
 	@PreAuthorize("hasRole('USER') or hasRole('ORDER_SERVICE') or hasRole('ADMIN')")
-	public ResponseEntity<?> getAllByUserId(@PathVariable("userId") String userId) {
+	public ResponseEntity<?> get_all_booking_by_user_id(@PathVariable("userId") String userId) {
 		try {
 			List<OrdersSer> entityList = service.getAllByUserId(userId);
 			if(entityList.size() > 0) {
@@ -136,7 +136,7 @@ public class OrderSerController {
 	
 	@GetMapping(value = "/OrdersSer/UpdateDate/{date}")
 	@PreAuthorize("hasRole('USER') or hasRole('ORDER_SERVICE') or hasRole('ADMIN')")
-	public ResponseEntity<?> getAllByUpdateDate(@PathVariable("date") String date) {
+	public ResponseEntity<?> get_all_booking_by_update_date(@PathVariable("date") String date) {
 		try {
 			List<OrdersSer> entityList = service.getAllByUpdateDate(date);
 			List<OrdersSerReponse> dtos = entityList.stream().map(user -> modelMapper.map(user, OrdersSerReponse.class))
@@ -171,9 +171,9 @@ public class OrderSerController {
 		}
 	}
 
-	@GetMapping(value = "/OrdersSer/{id}")
+	@GetMapping(value = "/OrdersSer/{booking_id}")
 	@PreAuthorize("hasRole('USER') or hasRole('ORDER_SERVICE') or hasRole('ADMIN')")
-	public ResponseEntity<?> getById(@PathVariable("id") String id) {
+	public ResponseEntity<?> get_booking_by_id(@PathVariable("booking_id") String id) {
 		try {
 			OrdersSer entity = service.getById(id);
 			List<ServiceDetailsReponse> listDetails = new ArrayList<>();
@@ -204,7 +204,7 @@ public class OrderSerController {
 	
 	
 	@PostMapping(value = "/OrdersSer")
-	public ResponseEntity<?> create(@RequestBody OrdersSerReponse dto) {
+	public ResponseEntity<?> create_booking(@RequestBody OrdersSerReponse dto) {
 		try {
 			Date date = Date.from(Instant.now());
 			if(dto.getOrSerPhoneNo() != null
@@ -249,9 +249,9 @@ public class OrderSerController {
 		}
 	}
 
-	@PutMapping(value = "/OrdersSer/{id}")
+	@PutMapping(value = "/OrdersSer/{booking_id}")
 	@PreAuthorize("hasRole('MODERATOR') and hasRole('ORDER_SERVICE') or hasRole('ADMIN') or hasRole('USER')")
-	public ResponseEntity<?> update(@PathVariable("id") String id, @RequestBody OrdersSerReponse dto) {
+	public ResponseEntity<?> update_booking(@PathVariable("booking_id") String id, @RequestBody OrdersSerReponse dto) {
 		try {
 			Boolean checkStatus = false;
 			Date date = Date.from(Instant.now());

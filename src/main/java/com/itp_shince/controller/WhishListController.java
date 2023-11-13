@@ -35,7 +35,7 @@ public class WhishListController {
 	
 	@GetMapping("/WhishList/{user_id}")
 	@PreAuthorize("hasRole('USER')")
-	public ResponseEntity<?> getById(@PathVariable("user_id") String id){		
+	public ResponseEntity<?> get_whish_list_by_user_id(@PathVariable("user_id") String id){		
 		try {
 			List<WhishList> entityList = service.getAll();
 			entityList =  entityList.stream().filter(n -> n.getUsers().getUsId().equals(id)).toList();
@@ -59,9 +59,9 @@ public class WhishListController {
 		}	
 	}
 	
-	@DeleteMapping(value = "/WhishList/{id}")
+	@DeleteMapping(value = "/WhishList/{whish_list_id}")
 	@PreAuthorize("hasRole('USER')")
-	public ResponseEntity<?> deleteWhishList(@PathVariable("id") Integer id) {	
+	public ResponseEntity<?> delete_whish_list_by_id(@PathVariable("whish_list_id") Integer id) {	
 		try {
 			WhishList whishList = service.getById(id);
 			if (service.getById(id) != null ) {

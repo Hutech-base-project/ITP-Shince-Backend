@@ -1,5 +1,5 @@
 package com.itp_shince.dto.reponse;
-import java.util.Collection;
+import java.util.List;
 
 import com.itp_shince.dto.AbstractDTO;
 
@@ -17,7 +17,7 @@ public class OrderProReponse extends AbstractDTO<OrderProReponse>{
 	private Float orProTotal;
 	private Float orProShip;
 	
-	private Collection<OrderProDetailsReponse> listPro;
+	private List<OrderProDetailsReponse> listPro;
 	
 	
 	public OrderProReponse() {
@@ -136,11 +136,11 @@ public class OrderProReponse extends AbstractDTO<OrderProReponse>{
 		this.orProNote = orProNote;
 	}
 
-	public Collection<OrderProDetailsReponse> getListProId() {
+	public List<OrderProDetailsReponse> getListPro() {
 		return listPro;
 	}
 
-	public void setListProId(Collection<OrderProDetailsReponse> listProId) {
-		this.listPro = listProId;
+	public void setListPro(List<OrderProDetailsReponse> listPro) {
+		this.listPro = listPro;
 	}
 }

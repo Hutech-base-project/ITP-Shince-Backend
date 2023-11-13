@@ -59,22 +59,24 @@ public class OrderProController {
 
 	HttpHeaders responseHeaders = new HttpHeaders();
 	@GetMapping(value = "/OrdersPro")
-	@PreAuthorize("hasRole('USER') or hasRole('ORDER_PRODUCT') or hasRole('ADMIN')")
-	public ResponseEntity<?> getAll(){
+//	@PreAuthorize("hasRole('USER') or hasRole('ORDER_PRODUCT') or hasRole('ADMIN')")
+	public ResponseEntity<?> get_all_orders(){
 		try {
 			List<OrdersPro> entityList = service.getAll();
 			List<OrderProReponse> dtos = entityList.stream().map(user -> modelMapper.map(user, OrderProReponse.class))
 					.collect(Collectors.toList());
+			
 			for (OrdersPro entity : entityList) {
 				for (OrderProReponse dto : dtos) {
 					if (dto.getOrProId().equals(entity.getOrProId())) {
 						if(entity.getUsers() != null) {
 							dto.setOrProUserId(entity.getUsers().getUsId());
-
 						}else {
 							dto.setOrProUserId(null);
-
 						}
+						List<OrderProDetailsReponse> detailsReponses = entity.getOrdersprodetails().stream().map(user -> modelMapper.map(user, OrderProDetailsReponse.class))
+								.collect(Collectors.toList());
+						dto.setListPro(detailsReponses);
 					}
 				}
 			}
@@ -88,9 +90,9 @@ public class OrderProController {
 		}
 	}
 	
-	@GetMapping(value = "/OrdersPro/User/{userId}")
-	@PreAuthorize("hasRole('USER') or hasRole('ORDER_PRODUCT') or hasRole('ADMIN')")
-	public ResponseEntity<?> getAllByUserId(@PathVariable("userId") String userId){
+	@GetMapping(value = "/OrdersPro/User/{user_id}")
+//	@PreAuthorize("hasRole('USER') or hasRole('ORDER_PRODUCT') or hasRole('ADMIN')")
+	public ResponseEntity<?> get_all_order_by_user_id(@PathVariable("user_id") String userId){
 		try {
 			List<OrdersPro> entityList = service.getAllByUserId(userId);
 			List<OrderProReponse> dtos = entityList.stream().map(user -> modelMapper.map(user, OrderProReponse.class))
@@ -111,7 +113,7 @@ public class OrderProController {
 							listDetails.add(detail);
 						}
 						dto.setOrProTotal(entity.getOrProTotal());
-						dto.setListProId(listDetails);	
+						dto.setListPro(listDetails);	
 					}
 				}
 			}
@@ -127,7 +129,7 @@ public class OrderProController {
 	
 	@GetMapping(value = "/OrdersPro/UpdateDate/{date}")
 //	@PreAuthorize("hasRole('USER') or hasRole('ORDER_PRODUCT') or hasRole('ADMIN')")
-	public ResponseEntity<?> getAllByUpdateDate(@PathVariable("date") String date){
+	public ResponseEntity<?> get_all_order_by_update_date(@PathVariable("date") String date){
 		try {
 			List<OrdersPro> entityList = service.getAllByUpdateDate(date);
 			List<OrderProReponse> dtos = entityList.stream().map(user -> modelMapper.map(user, OrderProReponse.class))
@@ -155,9 +157,9 @@ public class OrderProController {
 		}
 	}
 	
-	@GetMapping(value = "/OrdersPro/{id}")
-	@PreAuthorize("hasRole('USER') or hasRole('ORDER_PRODUCT') or hasRole('ADMIN')")
-	public ResponseEntity<?> getById(@PathVariable("id") String id){
+	@GetMapping(value = "/OrdersPro/{order_id}")
+//	@PreAuthorize("hasRole('USER') or hasRole('ORDER_PRODUCT') or hasRole('ADMIN')")
+	public ResponseEntity<?> get_order_by_id(@PathVariable("order_id") String id){
 		try {
 			OrdersPro entity = service.getById(id);
 			if (service.getById(id) != null) {
@@ -183,7 +185,7 @@ public class OrderProController {
 	}
 	
 	@PostMapping(value = "/OrdersPro")
-	public ResponseEntity<?> create(@RequestBody OrderProReponse dto) {
+	public ResponseEntity<?> create_order(@RequestBody OrderProReponse dto) {
 		try {
 			Date date = Date.from(Instant.now());
 			OrdersPro entityRequest = modelMapper.map(dto, OrdersPro.class);
@@ -203,7 +205,7 @@ public class OrderProController {
 				}
 				entityRequest.setCreatedAt(date);
 				OrdersPro entity = service.create(entityRequest);
-				for (OrderProDetailsReponse item : dto.getListProId()) {
+				for (OrderProDetailsReponse item : dto.getListPro()) {
 					if(!item.getProProductName().isEmpty() && item.getProQuantity()!= 0 && item.getProProductPrice() != 0) {
 						if(proSer.getById(item.getProductId())!= null) {
 							Product product = proSer.getById(item.getProductId());
@@ -227,9 +229,9 @@ public class OrderProController {
 		}
 	}
 	
-	@PutMapping(value = "/OrdersPro/{id}")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('ORDER_PRODUCT') or hasRole('ADMIN') or hasRole('USER')")
-	public ResponseEntity<?> update(@PathVariable("id") String id, @RequestBody OrderProRequest dto) {
+	@PutMapping(value = "/OrdersPro/{order_id}")
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('ORDER_PRODUCT') or hasRole('ADMIN') or hasRole('USER')")
+	public ResponseEntity<?> update_order(@PathVariable("order_id") String id, @RequestBody OrderProRequest dto) {
 		try {
 			Boolean checkStatus = false;
 			Date date = Date.from(Instant.now());

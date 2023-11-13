@@ -43,7 +43,7 @@ public class CategoriesController {
 	
 	HttpHeaders responseHeaders = new HttpHeaders();
 	@GetMapping("/Category")
-	public ResponseEntity<?> getAll(){		
+	public ResponseEntity<?> get_all_categories(){		
 		try {
 			ObjectReponse objectReponse = new ObjectReponse("Success", 200, service.getAll()
 					.stream()
@@ -63,8 +63,8 @@ public class CategoriesController {
 		}
 	}
 	
-	@GetMapping("/Category/{id}")
-	public ResponseEntity<?> getById(@PathVariable("id") Integer id){		
+	@GetMapping("/Category/{category_id}")
+	public ResponseEntity<?> get_category_by_id(@PathVariable("category_id") Integer id){		
 		try {
 			Category entity = service.getById(id);
 			if(entity != null) {
@@ -162,9 +162,9 @@ public class CategoriesController {
 		}	
 	}
 	
-	@DeleteMapping(value = "/Category/{id}")
+	@DeleteMapping(value = "/Category/{category_id}")
 	@PreAuthorize("hasRole('MODERATOR') and hasRole('CATEGORY') or hasRole('ADMIN')")
-	public ResponseEntity<?> deleteCategory(@PathVariable("id") Integer id) {	
+	public ResponseEntity<?> delete_category(@PathVariable("category_id") Integer id) {	
 		try {
 			Category entity = service.getById(id);
 			if (service.getById(id) != null ) {

@@ -34,8 +34,8 @@ public class RoleController {
 	HttpHeaders responseHeaders = new HttpHeaders();
 	
 	@GetMapping(value = "/Role")
-	@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-	public ResponseEntity<?> getAll(){
+//	@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+	public ResponseEntity<?> get_all_roles(){
 		List<Role> entityList = service.getAll();
 		List<RoleReponse> dtos = entityList.stream().map(rol -> modelMapper.map(rol, RoleReponse.class))
 				.collect(Collectors.toList());
@@ -51,9 +51,9 @@ public class RoleController {
 
 	}
 	
-	@GetMapping(value = "/Role/{id}")
+	@GetMapping(value = "/Role/{role_id}")
 	@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-	public ResponseEntity<?> getById(@PathVariable("id") Integer id){
+	public ResponseEntity<?> get_role_by_id(@PathVariable("role_id") Integer id){
 		try {		 
 			Role entity = service.getById(id);
 			if (service.getById(id) != null) {
