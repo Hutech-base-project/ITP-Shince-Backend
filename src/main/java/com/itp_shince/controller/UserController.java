@@ -11,9 +11,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 //import org.mindrot.jbcrypt.BCrypt;
@@ -87,8 +85,8 @@ public class UserController {
 	ObjectMapper mapper = new ObjectMapper();
 
 	@GetMapping(value = "/Users")
-	@PreAuthorize("hasRole('ACCOUNT') or hasRole('ADMIN')")
-	public ResponseEntity<?> getAll() {
+//	@PreAuthorize("hasRole('ACCOUNT') or hasRole('ADMIN')")
+	public ResponseEntity<?> get_all_users() {
 		try {
 			List<Users> entityList = service.getAll();
 			List<UsersReponse> dtos = entityList.stream().map(user -> modelMapper.map(user, UsersReponse.class))
@@ -114,9 +112,9 @@ public class UserController {
 		return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 
-	@GetMapping(value = "/Users/{id}")
-	@PreAuthorize("hasRole('USER') or hasRole('ACCOUNT') or hasRole('ADMIN')")
-	public ResponseEntity<?> getUserById(@PathVariable("id") String id) {
+	@GetMapping(value = "/Users/{user_id}")
+//	@PreAuthorize("hasRole('USER') or hasRole('ACCOUNT') or hasRole('ADMIN')")
+	public ResponseEntity<?> get_user_by_id(@PathVariable("user_id") String id) {
 		try {
 			List<String> listRole = new ArrayList<>();
 			Users entity = service.getById(id);
@@ -135,16 +133,18 @@ public class UserController {
 	}
 
 	@PostMapping(value = "/Users")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('ACCOUNT') or hasRole('ADMIN')")
-	public ResponseEntity<?> create(@RequestBody UsersRequest dto) {
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('ACCOUNT') or hasRole('ADMIN')")
+	public ResponseEntity<?> create_user(@RequestPart(required = false) String json,
+			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile file) {
 		try {
+			UsersRequest dto = mapper.readValue(json, UsersRequest.class);
 			if ((dto.getUsUserName() != null || !dto.getUsUserName().isEmpty())
 					&& (dto.getUsDob() != null || !dto.getUsDob().isEmpty())
 					&& (dto.getUsAddress() != null || !dto.getUsAddress().isEmpty())
 					&& (dto.getUsEmailNo() != null || !dto.getUsEmailNo().isEmpty())
 					&& (dto.getUsPassword() != null || !dto.getUsPassword().isEmpty())
-					&& (dto.getUsPhoneNo() != null || !dto.getUsPhoneNo().isEmpty()) 
-					&& dto.getListRole().size() > 0) {
+					&& (dto.getUsPhoneNo() != null || !dto.getUsPhoneNo().isEmpty()) && dto.getListRole().size() > 0
+					&& file != null) {
 				Date date = Date.from(Instant.now());
 				String hash = BCrypt.hashpw(dto.getUsPassword(), BCrypt.gensalt(12));
 				dto.setUsPassword(hash);
@@ -153,11 +153,19 @@ public class UserController {
 				entityResquest.setUsId(idUserIentity());
 				entityResquest.setIsDelete(false);
 				Users user = service.create(entityResquest);
-				Set<UserRole> roles = new HashSet<>();
+				List<UserRole> roles = new ArrayList<>();
 				List<String> roleRequest = dto.getListRole();
 				user.setIsAdmin(true);
-				UserRole userRole = new UserRole();
+				user.setIsDelete(false);
+				File folder = new File("Images/Users/" + entityResquest.getUsId());
+				folder.mkdirs();
+				Path path = Paths.get(folder.getPath());
+				InputStream inputStream = file.getInputStream();
+				Files.copy(inputStream, path.resolve(file.getOriginalFilename()), StandardCopyOption.REPLACE_EXISTING);
+				user.setUsImage(entityResquest.getUsId() + "/" + file.getOriginalFilename().toLowerCase());
+				service.create(user);
 				for (String nameRole : roleRequest) {
+					UserRole userRole = new UserRole();
 					if (nameRole.equals(ERole.ROLE_ACCOUNT.toString()) || nameRole.equals(ERole.ROLE_ADMIN.toString())
 							|| nameRole.equals(ERole.ROLE_CATEGORY.toString())
 							|| nameRole.equals(ERole.ROLE_MODERATOR.toString())
@@ -165,8 +173,10 @@ public class UserController {
 							|| nameRole.equals(ERole.ROLE_ORDER_SERVICE.toString())
 							|| nameRole.equals(ERole.ROLE_PRODUCT.toString())
 							|| nameRole.equals(ERole.ROLE_SERVICE.toString())
-							|| nameRole.equals(ERole.ROLE_USER.toString())) {
+							|| nameRole.equals(ERole.ROLE_USER.toString())
+							|| nameRole.equals(ERole.ROLE_EMPLOYYE.toString())) {
 						userRole.setRole(roleService.getByName(nameRole));
+						userRole.setUsers(user);
 						roles.add(userRole);
 					} else {
 						ObjectReponse objectReponse = new ObjectReponse("Role" + nameRole + "is not correct", 400, 0,
@@ -174,9 +184,8 @@ public class UserController {
 						return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 					}
 				}
-				userRole.setUsers(user);
-				service.create(user);
 				for (UserRole role : roles) {
+					role.setCreatedAt(date);
 					userRoleService.create(role);
 				}
 				ObjectReponse objectReponse = new ObjectReponse("Success", 201, 0, 120, "Minute");
@@ -193,41 +202,41 @@ public class UserController {
 		}
 	}
 
-	@PutMapping(value = "/Users")
-	@PreAuthorize("hasRole('USER') or hasRole('MODERATOR') and hasRole('ACCOUNT') or hasRole('ADMIN')")
-	public ResponseEntity<?> update(
+	@PutMapping(value = "/Users/{user_id}")
+//	@PreAuthorize("hasRole('USER') or hasRole('MODERATOR') and hasRole('ACCOUNT') or hasRole('ADMIN')")
+	public ResponseEntity<?> update_user(@PathVariable("user_id") String id,
 			@RequestPart(name = "data_json", required = false) String json,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile file) {
 		try {
-			Date date = Date.from(Instant.now());	
+			Date date = Date.from(Instant.now());
 			UsersRequest dto = mapper.readValue(json, UsersRequest.class);
 			Users entityRequest = modelMapper.map(dto, Users.class);
-			if (service.getById(dto.getUsId()) != null) {
-				Users entity = service.getById(dto.getUsId());
+			if (service.getById(id) != null) {
+				Users entity = service.getById(id);
 				entityRequest.setUpdatedAt(date);
-				if(entityRequest.getUsUserName() != null || !entityRequest.getUsUserName().isEmpty()) {
+				if (entityRequest.getUsUserName() != null || !entityRequest.getUsUserName().isEmpty()) {
 					entityRequest.setUsUserName(entity.getUsUserName());
 				}
-				if(entityRequest.getUsAddress() != null || !entityRequest.getUsAddress().isEmpty()) {
+				if (entityRequest.getUsAddress() != null || !entityRequest.getUsAddress().isEmpty()) {
 					entityRequest.setUsAddress(entity.getUsAddress());
 				}
-				if(entityRequest.getUsDob() != null || !entityRequest.getUsDob().isEmpty()) {
-					entityRequest.setUsDob(entity.getUsAddress());		
+				if (entityRequest.getUsDob() != null || !entityRequest.getUsDob().isEmpty()) {
+					entityRequest.setUsDob(entity.getUsDob());
 				}
-				if(entityRequest.getUsEmailNo() != null || !entityRequest.getUsEmailNo().isEmpty()) {
-					entityRequest.setUsEmailNo(entity.getUsEmailNo());	
+				if (entityRequest.getUsEmailNo() != null || !entityRequest.getUsEmailNo().isEmpty()) {
+					entityRequest.setUsEmailNo(entity.getUsEmailNo());
 				}
-				if(entityRequest.getUsPassword() != null || !entityRequest.getUsPassword().isEmpty()) {
-					entityRequest.setUsPassword(entity.getUsPassword());	
-				}else {
+				if (entityRequest.getUsPassword() != null || !entityRequest.getUsPassword().isEmpty()) {
+					entityRequest.setUsPassword(entity.getUsPassword());
+				} else {
 					entityRequest.setUsPassword(encoder.encode(entityRequest.getUsPassword()));
 				}
-				if(entityRequest.getUsPhoneNo() != null || !entityRequest.getUsPhoneNo().isEmpty()) {
+				if (entityRequest.getUsPhoneNo() != null || !entityRequest.getUsPhoneNo().isEmpty()) {
 					entityRequest.setUsPhoneNo(entity.getUsPhoneNo());
 				}
 				entityRequest.setCreatedAt(entity.getCreatedAt());
 				if (file == null) {
-					entityRequest.setUsImage(entity.getUsImage());			
+					entityRequest.setUsImage(entity.getUsImage());
 				} else {
 					// delete old image
 					if (entityRequest.getUsImage() != null) {
@@ -240,25 +249,58 @@ public class UserController {
 					InputStream inputStream = file.getInputStream();
 					Files.copy(inputStream, path.resolve(file.getOriginalFilename()),
 							StandardCopyOption.REPLACE_EXISTING);
-					entityRequest.setUsImage(entityRequest.getUsId() + "/" + file.getOriginalFilename().toLowerCase());
+					entityRequest.setUsImage(entity.getUsId() + "/" + file.getOriginalFilename().toLowerCase());
 				}
+				entityRequest.setUsId(id);
 				service.create(entityRequest);
+				if (dto.getListRole().size() > 0) {
+					for (UserRole userRole : entity.getUserRoles()) {
+						userRoleService.delete(userRole);
+					}
+					List<UserRole> roles = new ArrayList<>();
+					List<String> roleRequest = dto.getListRole();
+					for (String nameRole : roleRequest) {
+						UserRole userRole = new UserRole();
+						if (nameRole.equals(ERole.ROLE_ACCOUNT.toString())
+								|| nameRole.equals(ERole.ROLE_ADMIN.toString())
+								|| nameRole.equals(ERole.ROLE_CATEGORY.toString())
+								|| nameRole.equals(ERole.ROLE_MODERATOR.toString())
+								|| nameRole.equals(ERole.ROLE_ORDER_PRODUCT.toString())
+								|| nameRole.equals(ERole.ROLE_ORDER_SERVICE.toString())
+								|| nameRole.equals(ERole.ROLE_PRODUCT.toString())
+								|| nameRole.equals(ERole.ROLE_SERVICE.toString())
+								|| nameRole.equals(ERole.ROLE_USER.toString())
+								|| nameRole.equals(ERole.ROLE_EMPLOYYE.toString())) {
+							userRole.setRole(roleService.getByName(nameRole));
+							userRole.setUsers(entity);
+							roles.add(userRole);
+						} else {
+							ObjectReponse objectReponse = new ObjectReponse("Role" + nameRole + "is not correct", 400,
+									0, 120, "Minute");
+							return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
+						}
+					}
+					for (UserRole role : roles) {
+						role.setCreatedAt(date);
+						userRoleService.create(role);
+					}
+				}
 				ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
-			}else {
-				ObjectReponse objectReponse = new ObjectReponse("This user does not exist", 404,0 ,
-						120, "Minute");
+			} else {
+				ObjectReponse objectReponse = new ObjectReponse("This user does not exist", 404, 0, 120, "Minute");
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
 			}
 		} catch (Exception e) {
+			System.out.print(e.getMessage());
 			ObjectReponse objectReponse = new ObjectReponse("Connect server fail", 500, 0, 120, "Minute");
 			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
 	@PutMapping(value = "/UserChangePassword")
-	@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-	public ResponseEntity<?> changeUserPassword(@RequestBody ChangePassowrdRequest changePass) {
+//	@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+	public ResponseEntity<?> change_user_password(@RequestBody ChangePassowrdRequest changePass) {
 		try {
 			System.out.print(changePass);
 			if (service.getById(changePass.getUserId()) != null) {
@@ -292,9 +334,9 @@ public class UserController {
 		}
 	}
 
-	@DeleteMapping(value = "/Users")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('ACCOUNT') or hasRole('ADMIN')")
-	public ResponseEntity<?> deleteUsers(@RequestBody String id) {
+	@DeleteMapping(value = "/Users/{user_id}")
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('ACCOUNT') or hasRole('ADMIN')")
+	public ResponseEntity<?> delete_user(@PathVariable("user_id") String id) {
 		try {
 			Users entity = service.getById(id);
 			Boolean checkOrdPro = false;

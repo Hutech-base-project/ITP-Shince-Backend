@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itp_shince.dto.reponse.ObjectReponse;
+import com.itp_shince.dto.reponse.SerceImageReponse;
 import com.itp_shince.dto.reponse.SerceReponse;
 import com.itp_shince.dto.request.SerceImageRequest;
 import com.itp_shince.dto.request.SerceRequest;
@@ -61,11 +63,26 @@ public class SerceController {
 	ObjectMapper mapper = new ObjectMapper();
 
 	@GetMapping(value = "/Serce")
-	public ResponseEntity<?> getAll() {
+	public ResponseEntity<?> get_all_services() {
 		try {
 			List<Serce> entityList = service.getAll();
+			List<SerceImage> listServiceImages = serviceSerImg.getAll();
 			List<SerceReponse> dtos = entityList.stream().map(ser -> modelMapper.map(ser, SerceReponse.class))
 					.collect(Collectors.toList());
+			for (Serce entity : entityList) {
+				List<SerceImageReponse> list = new ArrayList<>();
+				for (SerceImage image : listServiceImages) {
+					if (image.getSerce().getSeId().equals(entity.getSeId())) {
+						list.add(new SerceImageReponse(image.getSerImgId(), image.getSerImgPath()));
+					}
+				}
+				for (SerceReponse dto : dtos) {
+					if (dto.getSeId().equals(entity.getSeId())) {
+						dto.setListImg(list);
+					}
+				}
+
+			}
 			ObjectReponse objectReponse = new ObjectReponse("Success", 200, dtos, 120, "Minute");
 			return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
 		} catch (Exception e) {
@@ -74,8 +91,8 @@ public class SerceController {
 		}
 	}
 
-	@GetMapping(value = "/Serce/{id}")
-	public ResponseEntity<?> getById(@PathVariable("id") String id) {
+	@GetMapping(value = "/Serce/{service_id}")
+	public ResponseEntity<?> get_service_by_id(@PathVariable("service_id") String id) {
 		try {
 			Serce entity = service.getById(id);
 			if (service.getById(id) != null) {
@@ -93,21 +110,32 @@ public class SerceController {
 	}
 
 	@PostMapping(value = "/Serce")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('SERVICE') or hasRole('ADMIN')")
-	public ResponseEntity<?> create(@RequestPart(required = false) String json,
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('SERVICE') or hasRole('ADMIN')")
+	public ResponseEntity<?> create_service(@RequestPart(required = false) String json,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile file,
 			@RequestPart(required = false) @ApiParam(required = true, value = "") MultipartFile[] Mutifile) {
 		try {
+			Date date = Date.from(Instant.now());		
 			SerceRequest dto = mapper.readValue(json, SerceRequest.class);
+			Serce entityRequest = modelMapper.map(dto, Serce.class);
 			List<Serce> entityList = service.getAll();
 			if (dto.getSeName() != null &&
 				dto.getSeDescription() != null &&
 				dto.getSePrice() != null &&
 				entityList.stream().filter(n -> n.getSeName().equals(dto.getSeName())).count() == 0 &&
-				file != null) {
-				Date date = Date.from(Instant.now());
-				Serce entityRequest = modelMapper.map(dto, Serce.class);
+				file != null &&
+				Mutifile != null &&
+				Mutifile.length == 4) {
+				if (entityList.size() > 0) {
+					if (entityList.stream().filter(n -> n.getSeName().equals(entityRequest.getSeName())&& n.getIsDelete() == false) == null) {
+						ObjectReponse objectReponse = new ObjectReponse(
+								"This product cannot be created, please check the product information", 400, 0, 120,
+								"Minute");
+						return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
+					}
+				}
 				entityRequest.setSeId(idSerceIdentity());
+				entityRequest.setCreatedAt(date);
 				if(entityRequest.getSeTurnOn() == null ) {
 					entityRequest.setSeTurnOn(true);
 				}
@@ -120,22 +148,19 @@ public class SerceController {
 				InputStream inputStream = file.getInputStream();
 				Files.copy(inputStream, path.resolve(file.getOriginalFilename()), StandardCopyOption.REPLACE_EXISTING);
 				entityRequest.setSeImage(entityRequest.getSeId() + "/" + file.getOriginalFilename().toLowerCase());
-				entityRequest.setCreatedAt(date);
 				service.create(entityRequest);
-				if (Mutifile != null) {
-					File folderMulti = new File("ImagesChildent/Services/" + entityRequest.getSeId());
-					folderMulti.mkdirs();
-					Path pathChild = Paths.get(folderMulti.getPath());
-					for (MultipartFile childFile : Mutifile) {
-						InputStream inputChildStream = childFile.getInputStream();
-						Files.copy(inputChildStream, pathChild.resolve(childFile.getOriginalFilename()),
-								StandardCopyOption.REPLACE_EXISTING);
-						String imgPath = entityRequest.getSeId() + "/" + childFile.getOriginalFilename().toLowerCase();
-						SerceImageRequest entityChildRequest = new SerceImageRequest(idSerImgIdentity(), entityRequest,
-								imgPath, date, false);
-						SerceImage entityConvertRequest = modelMapper.map(entityChildRequest, SerceImage.class);
-						serviceSerImg.create(entityConvertRequest);
-					}
+				File folderMulti = new File("ImagesChildent/Services/" + entityRequest.getSeId());
+				folderMulti.mkdirs();
+				Path pathChild = Paths.get(folderMulti.getPath());
+				for (MultipartFile childFile : Mutifile) {
+					InputStream inputChildStream = childFile.getInputStream();
+					Files.copy(inputChildStream, pathChild.resolve(childFile.getOriginalFilename()),
+							StandardCopyOption.REPLACE_EXISTING);
+					String imgPath = entityRequest.getSeId() + "/" + childFile.getOriginalFilename().toLowerCase();
+					SerceImageRequest entityChildRequest = new SerceImageRequest(idSerImgIdentity(), entityRequest,
+							imgPath, date, false);
+					SerceImage entityConvertRequest = modelMapper.map(entityChildRequest, SerceImage.class);
+					serviceSerImg.create(entityConvertRequest);
 				}
 				ObjectReponse objectReponse = new ObjectReponse("Success", 201, 0, 120, "Minute");
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.CREATED);
@@ -150,9 +175,9 @@ public class SerceController {
 		}
 	}
 
-	@PutMapping(value = "/Serce/{id}")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('SERVICE') or hasRole('ADMIN')")
-	public ResponseEntity<?> update(@PathVariable("id") String id, @RequestPart(required = false) String json,
+	@PutMapping(value = "/Serce/{service_id}")
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('SERVICE') or hasRole('ADMIN')")
+	public ResponseEntity<?> update_service(@PathVariable("service_id") String id, @RequestPart(required = false) String json,
 			@RequestPart(required = false) @ApiParam(required = false, value = "") MultipartFile file,
 			@RequestPart(required = false) @ApiParam(required = false, value = "") MultipartFile[] Mutifile) {
 		try {
@@ -177,6 +202,7 @@ public class SerceController {
 					List<String> idImgChild = dtoRequest.getIdImgChild();
 					entityRequest.setSeId(id);
 					entityRequest.setCreatedAt(entity.getCreatedAt());
+					entityRequest.setUpdatedAt(date);
 					if(entityRequest.getSeName() == null || entityRequest.getSeName().isEmpty()) {
 						entityRequest.setSeName(entity.getSeName());
 					}
@@ -193,7 +219,7 @@ public class SerceController {
 						entityRequest.setSeTurnOn(entity.getSeTurnOn());
 					}
 					entityRequest.setIsDelete(entity.getIsDelete());				
-					if (entityList.stream().filter(n -> n.getSeName().equals(entityRequest.getSeName()) && n.getSeId() != id) != null) {
+					if (entityList.stream().filter(n -> n.getSeName().equals(entityRequest.getSeName())&& n.getIsDelete() == false && n.getSeId() != id) != null) {
 						if (file == null) {
 							entityRequest.setSeImage(entity.getSeImage());
 						} else {
@@ -211,48 +237,37 @@ public class SerceController {
 									entityRequest.getSeId() + "/" + file.getOriginalFilename().toLowerCase());
 						}
 
-						if (serviceSerImg.countSerImgBySerId(id) == 0 && Mutifile != null) {
-							File folderMulti = new File("ImagesChildent/Services/" + id);
-							folderMulti.mkdirs();
-							Path pathChild = Paths.get(folderMulti.getPath());
-							for (MultipartFile childFile : Mutifile) {
-								InputStream inputChildStream = childFile.getInputStream();
-								Files.copy(inputChildStream, pathChild.resolve(childFile.getOriginalFilename()),
-										StandardCopyOption.REPLACE_EXISTING);
-								String imgPath = id + "/" + childFile.getOriginalFilename().toLowerCase();
-								SerceImageRequest entityChildRequest = new SerceImageRequest(idSerImgIdentity(),
-										entityRequest, imgPath, date, false);
-								SerceImage entityConvertRequest = modelMapper.map(entityChildRequest, SerceImage.class);
-								serviceSerImg.create(entityConvertRequest);
-							}
-						} else {
-							if(idImgChild != null) {
-								if (idImgChild.size() > 0) {
-									for (int i = 0; i < Mutifile.length; i++) {
-										String idImg = idImgChild.get(i);
-										SerceImage serImg = serviceSerImg.getById(idImg);
-										File directoryToDelete = new File(
-												"ImagesChildent/Services/" + id + "/" + serImg.getSerImgPath());
-										FileSystemUtils.deleteRecursively(directoryToDelete);
-										Path path = Paths.get("ImagesChildent/Services/" + id);
-										InputStream inputStream = Mutifile[i].getInputStream();
-										Files.copy(inputStream, path.resolve(Mutifile[i].getOriginalFilename()),
-												StandardCopyOption.REPLACE_EXISTING);
-										serImg.setSerImgPath(id + "/" + Mutifile[i].getOriginalFilename().toLowerCase());
-										serImg.setUpdatedAt(date);
-										serviceSerImg.create(serImg);
+						if(idImgChild != null && Mutifile!= null) {
+							if (idImgChild.size() ==  Mutifile.length) {
+								for (String string : idImgChild) {
+									if(serviceSerImg.getById(string) == null ) {
+										ObjectReponse objectReponse = new ObjectReponse(
+												"This product cannot be updated, please check the product information", 400,
+												0, 120, "Minute");
+										return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 									}
-								} else {
-									ObjectReponse objectReponse = new ObjectReponse(
-											"This service cannot be updated, please check the service information", 400, 0,
-											120, "Minute");
-									return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 								}
-							}			
-						}
-						entityRequest.setSeId(id);
-						entityRequest.setCreatedAt(entity.getCreatedAt());
-						entityRequest.setUpdatedAt(date);
+								for (int i = 0; i < Mutifile.length; i++) {
+									String idImg = idImgChild.get(i);
+									SerceImage serImg = serviceSerImg.getById(idImg);
+									File directoryToDelete = new File(
+											"ImagesChildent/Services/" + id + "/" + serImg.getSerImgPath());
+									FileSystemUtils.deleteRecursively(directoryToDelete);
+									Path path = Paths.get("ImagesChildent/Services/" + id);
+									InputStream inputStream = Mutifile[i].getInputStream();
+									Files.copy(inputStream, path.resolve(Mutifile[i].getOriginalFilename()),
+											StandardCopyOption.REPLACE_EXISTING);
+									serImg.setSerImgPath(id + "/" + Mutifile[i].getOriginalFilename().toLowerCase());
+									serImg.setUpdatedAt(date);
+									serviceSerImg.create(serImg);
+								}
+							} else {
+								ObjectReponse objectReponse = new ObjectReponse(
+										"This service cannot be updated, please check the service information", 400, 0,
+										120, "Minute");
+								return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
+							}
+						}		
 						service.create(entityRequest);
 						ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
 						return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
@@ -275,9 +290,9 @@ public class SerceController {
 	}
 
 
-	@DeleteMapping(value = "/Serce/{idDel}")
-	@PreAuthorize("hasRole('MODERATOR') and hasRole('SERVICE') or hasRole('ADMIN')")
-	public ResponseEntity<?> deleteSerce(@PathVariable("idDel") String id) {
+	@DeleteMapping(value = "/Serce/{service_id}")
+//	@PreAuthorize("hasRole('MODERATOR') and hasRole('SERVICE') or hasRole('ADMIN')")
+	public ResponseEntity<?> delete_service(@PathVariable("service_id") String id) {
 		try {
 			Date date = Date.from(Instant.now());
 			Serce entity = service.getById(id);
@@ -289,6 +304,13 @@ public class SerceController {
 							File directoryToDelete = new File("Images/Services/" + entity.getSeId());
 							FileSystemUtils.deleteRecursively(directoryToDelete);
 						}
+						if (entity.getSerceImages() != null) {
+                            File directoryToDelete = new File("ImagesChildent/Services/" + entity.getSeId());
+                            FileSystemUtils.deleteRecursively(directoryToDelete);
+                            for (SerceImage seImg : entity.getSerceImages()) {
+                                serviceSerImg.delete(seImg);
+                            }
+                        }
 						service.delete(entity);
 						return new ResponseEntity<>("Success", responseHeaders, HttpStatus.OK);
 

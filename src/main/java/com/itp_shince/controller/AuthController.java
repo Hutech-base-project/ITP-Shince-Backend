@@ -106,12 +106,12 @@ public class AuthController {
 	ObjectMapper mapper = new ObjectMapper();
 
 	@PostMapping("/signin")
-	public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+	public ResponseEntity<?> authenticate_user(@RequestBody LoginRequest loginRequest) {
 		try {
 			Users user = userService.getByPhoneNumber(loginRequest.getPhoneNumber());
 			if (user != null) {
 				OtpRequest otp = new OtpRequest(loginRequest.getOtp(), loginRequest.getPhoneNumber());
-				ObjectReponse objectOTPReponse = validateOtp(otp);
+				ObjectReponse objectOTPReponse = validate_otp(otp);
 				if (objectOTPReponse.getResponseStatus() == 400) {
 					return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 				} else if (objectOTPReponse.getResponseStatus() == 404) {
@@ -127,8 +127,9 @@ public class AuthController {
 					List<String> roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
 							.collect(Collectors.toList());
 					RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId(), jwt);
+					Users users = userService.getById(userDetails.getId());
 					JwtResponse jwtResponse = new JwtResponse(jwt, refreshToken.getJwtId(), userDetails.getId(),
-							userDetails.getUsername(), userDetails.getPhoneNumber(), roles);
+							userDetails.getUsername(), userDetails.getPhoneNumber(), users.getIsAdmin(), roles);
 					sessService.saveSession(jwtResponse.getId() + jwtResponse.getUserName(), jwtResponse);
 					ObjectReponse objectReponse = new ObjectReponse("Success", 200, jwtResponse, 120, "Minute");
 					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
@@ -145,7 +146,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/checkLogin")
-	public ResponseEntity<?> checkUser(@RequestBody CheckLoginRequest checkLoginRequest, HttpServletRequest request) {
+	public ResponseEntity<?> check_user(@RequestBody CheckLoginRequest checkLoginRequest, HttpServletRequest request) {
 		try {
 			Users user = userService.getByPhoneNumber(checkLoginRequest.getPhoneNumber());
 			if (user != null) {
@@ -228,7 +229,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/signup")
-	public ResponseEntity<?> registerUser(@RequestBody SignupRequest signUpRequest) {
+	public ResponseEntity<?> register_user(@RequestBody SignupRequest signUpRequest) {
 
 		Date date = Date.from(Instant.now());
 		try {
@@ -240,7 +241,7 @@ public class AuthController {
 								HttpStatus.NOT_FOUND);
 					} else {
 						OtpRequest otp = new OtpRequest(signUpRequest.getOtp(), signUpRequest.getPhoneNumber());
-						ObjectReponse objectOTPReponse = validateOtp(otp);
+						ObjectReponse objectOTPReponse = validate_otp(otp);
 						if (objectOTPReponse.getResponseStatus() == 400) {
 							return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 						} else if (objectOTPReponse.getResponseStatus() == 404) {
@@ -262,6 +263,7 @@ public class AuthController {
 								role.setCreatedAt(date);
 								userRoleService.create(role);
 							}
+							user.setIsDelete(false);
 							user.setCreatedAt(date);
 							user.setUserRoles(roles);
 							userService.create(user);
@@ -287,7 +289,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/checkRegister/{phoneNumber}")
-	public ResponseEntity<?> chekRegister(@PathVariable("phoneNumber") String phoneNumber) {
+	public ResponseEntity<?> chek_register(@PathVariable("phoneNumber") String phoneNumber) {
 		try {
 			if (testUsingStrictRegex(phoneNumber)) {
 				if (userService.checkPhoneNumber(phoneNumber)) {
@@ -310,12 +312,12 @@ public class AuthController {
 	}
 
 	@PostMapping("/forgot_password")
-	public ResponseEntity<?> processForgotPassword(@RequestBody ForgotPasswordRequest forgotPassword) {
+	public ResponseEntity<?> process_forgot_password(@RequestBody ForgotPasswordRequest forgotPassword) {
 		try {
 			Users entity = userService.getByPhoneNumber(forgotPassword.getPhoneNumber());
 			if (entity != null) {
 				OtpRequest otp = new OtpRequest(forgotPassword.getOtp(), forgotPassword.getPhoneNumber());
-				ObjectReponse objectOTPReponse = validateOtp(otp);
+				ObjectReponse objectOTPReponse = validate_otp(otp);
 				if (objectOTPReponse.getResponseStatus() == 400) {
 					return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.NOT_FOUND);
 				} else if (objectOTPReponse.getResponseStatus() == 404) {
@@ -338,7 +340,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/generateOTP/{phoneNumber}")
-	public ResponseEntity<?> generateOTP(@PathVariable("phoneNumber") String phoneNumber, HttpServletRequest request) {
+	public ResponseEntity<?> generate_otp(@PathVariable("phoneNumber") String phoneNumber, HttpServletRequest request) {
 		try {
 			session = request.getSession();
 			Date dateNow = Date.from(Instant.now());
@@ -388,7 +390,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/validateOtp")
-	public ResponseEntity<?> checkOtp(@RequestBody OtpRequest otp) {
+	public ResponseEntity<?> check_otp(@RequestBody OtpRequest otp) {
 		// Validate the Otp
 		if (Integer.parseInt(otp.getOtp()) >= 0 && otp.getPhoneNumber() != null) {
 			if (Character.toString(otp.getPhoneNumber().charAt(0)).equals("0") == true) {
@@ -417,7 +419,7 @@ public class AuthController {
 	}
 
 	@GetMapping("/Session/{id}")
-	public ResponseEntity<?> getSessionById(@PathVariable("id") String id, HttpServletRequest request) {
+	public ResponseEntity<?> get_session_by_id(@PathVariable("id") String id, HttpServletRequest request) {
 		try {
 			if (sessService.getSession(id) != null) {
 				JwtResponse dtoReponse = sessService.getSession(id);
@@ -435,7 +437,7 @@ public class AuthController {
 		}
 	}
 
-	private ObjectReponse validateOtp(OtpRequest otp) {
+	private ObjectReponse validate_otp(OtpRequest otp) {
 		// Validate the Otp
 		if (Integer.parseInt(otp.getOtp()) >= 0 && otp.getPhoneNumber() != null) {
 			if (Character.toString(otp.getPhoneNumber().charAt(0)).equals("0") == true) {

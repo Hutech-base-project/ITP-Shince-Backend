@@ -50,6 +50,26 @@ public class Users implements java.io.Serializable {
 		this.usPassword = usPassword;
 		this.usPhoneNo = usPhoneNo;
 	}
+	
+	
+
+	public Users(String usId, String usUserName, String usPassword, String usDob, String usAddress, String usPhoneNo,
+			String usEmailNo, String usImage, String usNote, Boolean isAdmin, Date createdAt, Date updatedAt,
+			Boolean isDelete) {
+		this.usId = usId;
+		this.usUserName = usUserName;
+		this.usPassword = usPassword;
+		this.usDob = usDob;
+		this.usAddress = usAddress;
+		this.usPhoneNo = usPhoneNo;
+		this.usEmailNo = usEmailNo;
+		this.usImage = usImage;
+		this.usNote = usNote;
+		this.isAdmin = isAdmin;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.isDelete = isDelete;
+	}
 
 	public Users(String usId, String usUserName, String usPassword, String usDob, String usAddress, String usPhoneNo,
 			String usEmailNo, String usImage, String usNote, Boolean isAdmin, Date createdAt, Date updatedAt,
