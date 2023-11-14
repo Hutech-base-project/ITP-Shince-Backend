@@ -42,13 +42,13 @@ import com.itp_shince.dto.reponse.ObjectReponse;
 import com.itp_shince.dto.reponse.UsersReponse;
 import com.itp_shince.dto.request.ChangePassowrdRequest;
 import com.itp_shince.dto.request.UsersRequest;
+import com.itp_shince.model.Booking;
 import com.itp_shince.model.ERole;
 import com.itp_shince.model.OrdersPro;
-import com.itp_shince.model.OrdersSer;
 import com.itp_shince.model.UserRole;
 import com.itp_shince.model.Users;
+import com.itp_shince.service.BookingService;
 import com.itp_shince.service.OrderProService;
-import com.itp_shince.service.OrderSerService;
 import com.itp_shince.service.RoleService;
 import com.itp_shince.service.UserRoleService;
 import com.itp_shince.service.UserService;
@@ -79,7 +79,7 @@ public class UserController {
 	private OrderProService ordProService;
 
 	@Autowired
-	private OrderSerService ordSerService;
+	private BookingService bookingService;
 
 	HttpHeaders responseHeaders = new HttpHeaders();
 	ObjectMapper mapper = new ObjectMapper();
@@ -184,6 +184,10 @@ public class UserController {
 						return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
 					}
 				}
+				UserRole userRole = new UserRole();
+				userRole.setRole(roleService.getByName("ROLE_USER"));
+				userRole.setUsers(user);
+				roles.add(userRole);
 				for (UserRole role : roles) {
 					role.setCreatedAt(date);
 					userRoleService.create(role);
@@ -212,81 +216,124 @@ public class UserController {
 			UsersRequest dto = mapper.readValue(json, UsersRequest.class);
 			Users entityRequest = modelMapper.map(dto, Users.class);
 			if (service.getById(id) != null) {
-				Users entity = service.getById(id);
-				entityRequest.setUpdatedAt(date);
-				if (entityRequest.getUsUserName() != null || !entityRequest.getUsUserName().isEmpty()) {
-					entityRequest.setUsUserName(entity.getUsUserName());
+				Boolean checkOrder = false;
+				for (OrdersPro order : service.getById(id).getOrderspros()) {
+					if (order.getOrProStatus().equals("Wait for confirmation") == true
+							|| order.getOrProStatus().equals("Confirm") == true
+							|| order.getOrProStatus().equals("Delivery") == true) {
+						checkOrder = true;
+					}
 				}
-				if (entityRequest.getUsAddress() != null || !entityRequest.getUsAddress().isEmpty()) {
-					entityRequest.setUsAddress(entity.getUsAddress());
+				
+				Boolean checkBooking = false;
+				for (Booking booking : service.getById(id).getBookingsForBoUserId()) {
+					if (booking.getBoStatus().equals("Wait for confirmation") == true
+							|| booking.getBoStatus().equals("Confirm") == true
+							|| booking.getBoStatus().equals("Delivery") == true) {
+						checkBooking = true;
+					}
 				}
-				if (entityRequest.getUsDob() != null || !entityRequest.getUsDob().isEmpty()) {
-					entityRequest.setUsDob(entity.getUsDob());
+				
+				Boolean checkBlock = false;
+				if(dto.getIsBlock() != null) {
+					if(dto.getIsBlock() == true  && (checkBooking == true || checkOrder == true)) {
+						checkBlock = true;
+					}else {
+						checkBlock = false;
+					}
+				}else {
+					checkBlock = false;
 				}
-				if (entityRequest.getUsEmailNo() != null || !entityRequest.getUsEmailNo().isEmpty()) {
-					entityRequest.setUsEmailNo(entity.getUsEmailNo());
-				}
-				if (entityRequest.getUsPassword() != null || !entityRequest.getUsPassword().isEmpty()) {
+				if(checkBlock == false) {
+					Users entity = service.getById(id);
+					entityRequest.setUpdatedAt(date);
+					if (entityRequest.getUsUserName() == null || entityRequest.getUsUserName().isEmpty()) {
+						entityRequest.setUsUserName(entity.getUsUserName());
+					}
+					if (entityRequest.getUsAddress() == null || entityRequest.getUsAddress().isEmpty()) {
+						entityRequest.setUsAddress(entity.getUsAddress());
+					}
+					if (entityRequest.getUsDob() == null || entityRequest.getUsDob().isEmpty()) {
+						entityRequest.setUsDob(entity.getUsDob());
+					}
+					if (entityRequest.getUsEmailNo() == null || entityRequest.getUsEmailNo().isEmpty()) {
+						entityRequest.setUsEmailNo(entity.getUsEmailNo());
+					}
+					if (entityRequest.getUsPhoneNo() == null || entityRequest.getUsPhoneNo().isEmpty()) {
+						entityRequest.setUsPhoneNo(entity.getUsPhoneNo());
+					}	
+					if (entityRequest.getUsNote() == null || entityRequest.getUsNote().isEmpty()) {
+						entityRequest.setUsNote(entity.getUsNote());
+					}
+					if (entityRequest.getUsDob() == null || entityRequest.getUsDob().isEmpty()) {
+						entityRequest.setUsDob(entity.getUsDob());
+					}
+					if (entityRequest.getIsAdmin() == null) {
+						entityRequest.setIsAdmin(entity.getIsAdmin());
+					}
+					if (entityRequest.getIsBlock() == null) {
+						entityRequest.setIsBlock(entity.getIsBlock());
+					}
 					entityRequest.setUsPassword(entity.getUsPassword());
-				} else {
-					entityRequest.setUsPassword(encoder.encode(entityRequest.getUsPassword()));
-				}
-				if (entityRequest.getUsPhoneNo() != null || !entityRequest.getUsPhoneNo().isEmpty()) {
-					entityRequest.setUsPhoneNo(entity.getUsPhoneNo());
-				}
-				entityRequest.setCreatedAt(entity.getCreatedAt());
-				if (file == null) {
-					entityRequest.setUsImage(entity.getUsImage());
-				} else {
-					// delete old image
-					if (entityRequest.getUsImage() != null) {
-						File directoryToDelete = new File("Images/Users/" + dto.getUsId());
-						FileSystemUtils.deleteRecursively(directoryToDelete);
+					entityRequest.setCreatedAt(entity.getCreatedAt());
+					entityRequest.setUsId(id);
+					entityRequest.setIsDelete(false);
+					if (file == null) {
+						entityRequest.setUsImage(entity.getUsImage());
+					} else {
+						// delete old image
+						if (entityRequest.getUsImage() != null) {
+							File directoryToDelete = new File("Images/Users/" + dto.getUsId());
+							FileSystemUtils.deleteRecursively(directoryToDelete);
+						}
+						File folder = new File("Images/Users/" + entityRequest.getUsId());
+						folder.mkdirs();
+						Path path = Paths.get(folder.getPath());
+						InputStream inputStream = file.getInputStream();
+						Files.copy(inputStream, path.resolve(file.getOriginalFilename()),
+								StandardCopyOption.REPLACE_EXISTING);
+						entityRequest.setUsImage(entity.getUsId() + "/" + file.getOriginalFilename().toLowerCase());
 					}
-					File folder = new File("Images/Users/" + entityRequest.getUsId());
-					folder.mkdirs();
-					Path path = Paths.get(folder.getPath());
-					InputStream inputStream = file.getInputStream();
-					Files.copy(inputStream, path.resolve(file.getOriginalFilename()),
-							StandardCopyOption.REPLACE_EXISTING);
-					entityRequest.setUsImage(entity.getUsId() + "/" + file.getOriginalFilename().toLowerCase());
-				}
-				entityRequest.setUsId(id);
-				service.create(entityRequest);
-				if (dto.getListRole().size() > 0) {
-					for (UserRole userRole : entity.getUserRoles()) {
-						userRoleService.delete(userRole);
-					}
-					List<UserRole> roles = new ArrayList<>();
-					List<String> roleRequest = dto.getListRole();
-					for (String nameRole : roleRequest) {
-						UserRole userRole = new UserRole();
-						if (nameRole.equals(ERole.ROLE_ACCOUNT.toString())
-								|| nameRole.equals(ERole.ROLE_ADMIN.toString())
-								|| nameRole.equals(ERole.ROLE_CATEGORY.toString())
-								|| nameRole.equals(ERole.ROLE_MODERATOR.toString())
-								|| nameRole.equals(ERole.ROLE_ORDER_PRODUCT.toString())
-								|| nameRole.equals(ERole.ROLE_ORDER_SERVICE.toString())
-								|| nameRole.equals(ERole.ROLE_PRODUCT.toString())
-								|| nameRole.equals(ERole.ROLE_SERVICE.toString())
-								|| nameRole.equals(ERole.ROLE_USER.toString())
-								|| nameRole.equals(ERole.ROLE_EMPLOYYE.toString())) {
-							userRole.setRole(roleService.getByName(nameRole));
-							userRole.setUsers(entity);
-							roles.add(userRole);
-						} else {
-							ObjectReponse objectReponse = new ObjectReponse("Role" + nameRole + "is not correct", 400,
-									0, 120, "Minute");
-							return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
+					
+					service.create(entityRequest);
+					if (dto.getListRole().size() > 0) {
+						for (UserRole userRole : entity.getUserRoles()) {
+							userRoleService.delete(userRole);
+						}
+						List<UserRole> roles = new ArrayList<>();
+						List<String> roleRequest = dto.getListRole();
+						for (String nameRole : roleRequest) {
+							UserRole userRole = new UserRole();
+							if (nameRole.equals(ERole.ROLE_ACCOUNT.toString())
+									|| nameRole.equals(ERole.ROLE_ADMIN.toString())
+									|| nameRole.equals(ERole.ROLE_CATEGORY.toString())
+									|| nameRole.equals(ERole.ROLE_MODERATOR.toString())
+									|| nameRole.equals(ERole.ROLE_ORDER_PRODUCT.toString())
+									|| nameRole.equals(ERole.ROLE_ORDER_SERVICE.toString())
+									|| nameRole.equals(ERole.ROLE_PRODUCT.toString())
+									|| nameRole.equals(ERole.ROLE_SERVICE.toString())
+									|| nameRole.equals(ERole.ROLE_USER.toString())
+									|| nameRole.equals(ERole.ROLE_EMPLOYYE.toString())) {
+								userRole.setRole(roleService.getByName(nameRole));
+								userRole.setUsers(entity);
+								roles.add(userRole);
+							} else {
+								ObjectReponse objectReponse = new ObjectReponse("Role" + nameRole + "is not correct", 400,
+										0, 120, "Minute");
+								return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.BAD_REQUEST);
+							}
+						}
+						for (UserRole role : roles) {
+							role.setCreatedAt(date);
+							userRoleService.create(role);
 						}
 					}
-					for (UserRole role : roles) {
-						role.setCreatedAt(date);
-						userRoleService.create(role);
-					}
+					ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
+					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
+				}else {
+					ObjectReponse objectReponse = new ObjectReponse("This user cannot update", 404, 0, 120, "Minute");
+					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
 				}
-				ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
-				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
 			} else {
 				ObjectReponse objectReponse = new ObjectReponse("This user does not exist", 404, 0, 120, "Minute");
 				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
@@ -343,7 +390,7 @@ public class UserController {
 			Boolean checkOrdSer = false;
 			if (service.getById(id) != null) {
 				List<OrdersPro> listOrdPro = ordProService.getAllByUserId(id);
-				List<OrdersSer> listOrdSer = ordSerService.getAllByUserId(id);
+				List<Booking> listOrdSer = bookingService.getAllByUserId(id);
 				for (OrdersPro ordersPro : listOrdPro) {
 					if (ordersPro.getOrProStatus().equals("Wait for confirmation")
 							|| ordersPro.getOrProStatus().equals("Confirm")
@@ -351,9 +398,9 @@ public class UserController {
 						checkOrdPro = true;
 					}
 				}
-				for (OrdersSer ordersSer : listOrdSer) {
-					if (ordersSer.getOrSerStatus().equals("Waiting")
-							|| ordersSer.getOrSerStatus().equals("In process")) {
+				for (Booking booking : listOrdSer) {
+					if (booking.getBoStatus().equals("Waiting")
+							|| booking.getBoStatus().equals("In process")) {
 						checkOrdSer = true;
 					}
 				}

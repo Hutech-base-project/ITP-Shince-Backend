@@ -37,7 +37,7 @@ import com.itp_shince.dto.reponse.SerceImageReponse;
 import com.itp_shince.dto.reponse.SerceReponse;
 import com.itp_shince.dto.request.SerceImageRequest;
 import com.itp_shince.dto.request.SerceRequest;
-import com.itp_shince.model.OrderSerDetail;
+import com.itp_shince.model.BookingDetails;
 import com.itp_shince.model.Serce;
 import com.itp_shince.model.SerceImage;
 import com.itp_shince.service.SerceImageService;
@@ -184,9 +184,9 @@ public class SerceController {
 			Date date = Date.from(Instant.now());
 			if (service.getById(id) != null) {
 				Boolean check = false;
-				for (OrderSerDetail item : service.getById(id).getOrderserdetails()) {
-					if (item.getOrdersser().getOrSerStatus().equals("Waiting") == true
-							|| item.getOrdersser().getOrSerStatus().equals("In process") == true) {
+				for (BookingDetails item : service.getById(id).getBookingdetailses()) {
+					if (item.getBooking().getBoStatus().equals("Waiting") == true
+							|| item.getBooking().getBoStatus().equals("In process") == true) {
 						check = true;
 					}
 				}
@@ -299,7 +299,7 @@ public class SerceController {
 			entity.setUpdatedAt(date);
 			if (service.getById(id) != null) {
 				if (entity.getSeTurnOn() == false) {
-					if (entity.getOrderserdetails().size() == 0) {
+					if (entity.getBookingdetailses().size() == 0) {
 						if (entity.getSeImage() != null) {
 							File directoryToDelete = new File("Images/Services/" + entity.getSeId());
 							FileSystemUtils.deleteRecursively(directoryToDelete);
@@ -316,8 +316,8 @@ public class SerceController {
 
 					} else {
 						Boolean check = false;
-						for (OrderSerDetail item : entity.getOrderserdetails()) {
-							if (item.getOrdersser().getOrSerStatus().equals("In process") == true) {
+						for (BookingDetails item : entity.getBookingdetailses()) {
+							if (item.getBooking().getBoStatus().equals("In process") == true) {
 								check = true;
 							}
 						}

@@ -5,20 +5,20 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.itp_shince.model.OrdersSer;
-import com.itp_shince.repository.OrderSeceRepository;
+import com.itp_shince.model.Booking;
+import com.itp_shince.repository.BookingRepository;
 
 @Service
-public class OrderSerService extends ServiceAbstract<OrderSeceRepository, OrdersSer, String>{
+public class BookingService extends ServiceAbstract<BookingRepository, Booking, String>{
 	public Integer getCountOrSerByDate(LocalDate date) {
 		return repository.countOrSerByDate(date);
 	}
 
-	public List<OrdersSer> getAllByUserId(String id) {
+	public List<Booking> getAllByUserId(String id) {
 		return repository.findAllByUserId(id);
 	}
 	
-	public List<OrdersSer> getAllByUpdateDate(String date) {
+	public List<Booking> getAllByUpdateDate(String date) {
 		return repository.findAllByUpdateDay(date+"%");
 	}
 }

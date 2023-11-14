@@ -1,8 +1,6 @@
 package com.itp_shince.controller;
 
-import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.itp_shince.dto.reponse.ObjectReponse;
 import com.itp_shince.dto.reponse.VoucherReponse;
 import com.itp_shince.dto.request.VoucherRequest;
-import com.itp_shince.model.Product;
 import com.itp_shince.model.Voucher;
 import com.itp_shince.service.VoucherService;
 
@@ -80,7 +77,6 @@ public class VoucherController {
 //	@PreAuthorize("hasRole('MODERATOR') and hasRole('VOUCHER') or hasRole('ADMIN')")
 	public ResponseEntity<?> create_voucher(@RequestBody VoucherRequest dtoRequest) {
 		try {
-			Date date = Date.from(Instant.now());
 			Voucher entityRequest = modelMapper.map(dtoRequest, Voucher.class);
 			if (entityRequest.getVoName() != null && entityRequest.getVoDescription() != null
 					&& entityRequest.getVoPrice() > 0
@@ -99,7 +95,7 @@ public class VoucherController {
 					}
 				}
 				entityRequest.setVoId(idVoucherIdentity());
-				entityRequest.setCreatedAt(date);
+				
 				entityRequest.setIsDelete(false);
 				service.create(entityRequest);
 				ObjectReponse objectReponse = new ObjectReponse("Success", 201, 0, 0, "Minute");
@@ -120,7 +116,6 @@ public class VoucherController {
 	@PreAuthorize("hasRole('MODERATOR') and hasRole('VOUCHER') or hasRole('ADMIN')")
 	public ResponseEntity<?> update_voucher(@PathVariable("voucher_id") String id, @RequestBody VoucherRequest dto) {
 		try {
-			Date date = Date.from(Instant.now());
 			Voucher entityRequest = modelMapper.map(dto, Voucher.class);
 			Voucher entity = service.getById(id);
 			List<Voucher> entityList = service.getAll();
@@ -135,7 +130,9 @@ public class VoucherController {
 				}
 			}
 			entityRequest.setCreatedAt(entity.getCreatedAt());
-			entityRequest.setUpdatedAt(date);
+			if (entityRequest.getExpirationDate() == null ) {
+				entityRequest.setExpirationDate(entity.getCreatedAt());
+			}
 			entityRequest.setIsDelete(false);
 			if (entityRequest.getVoName() == null || entityRequest.getVoName().isEmpty()) {
 				entityRequest.setVoName(entity.getVoName());
