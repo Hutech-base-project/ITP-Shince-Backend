@@ -1,8 +1,8 @@
 package com.itp_shince.dto.request;
 
-import com.itp_shince.dto.AbstractDTO;
+import java.util.Date;
 
-public class VoucherRequest extends AbstractDTO<VoucherRequest>{
+public class VoucherRequest {
 	private String voId;
 	private String voName;
 	private String voDescription;
@@ -11,6 +11,8 @@ public class VoucherRequest extends AbstractDTO<VoucherRequest>{
 	private Boolean voService;
 	private int voCount;
 	private Boolean voTypeAuto;
+	private Date createdAt;
+	private Date expirationDate	;
 	private Boolean isDelete;
 	
 	public VoucherRequest(String voId, String voName, String voDescription, float voPrice, Boolean voProduct,
@@ -26,6 +28,24 @@ public class VoucherRequest extends AbstractDTO<VoucherRequest>{
 		this.voTypeAuto = voTypeAuto;
 		this.isDelete = isDelete;
 	}
+	
+	public VoucherRequest(String voId, String voName, String voDescription, float voPrice, Boolean voProduct,
+			Boolean voService, int voCount, Boolean voTypeAuto, Date createdAt, Date expirationDate, Boolean isDelete) {
+		super();
+		this.voId = voId;
+		this.voName = voName;
+		this.voDescription = voDescription;
+		this.voPrice = voPrice;
+		this.voProduct = voProduct;
+		this.voService = voService;
+		this.voCount = voCount;
+		this.voTypeAuto = voTypeAuto;
+		this.createdAt = createdAt;
+		this.expirationDate = expirationDate;
+		this.isDelete = isDelete;
+	}
+
+
 
 	public String getVoId() {
 		return voId;
@@ -89,6 +109,22 @@ public class VoucherRequest extends AbstractDTO<VoucherRequest>{
 
 	public void setVoTypeAuto(Boolean voTypeAuto) {
 		this.voTypeAuto = voTypeAuto;
+	}
+	
+	public Date getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(Date createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public Date getExpirationDate() {
+		return expirationDate;
+	}
+
+	public void setExpirationDate(Date expirationDate) {
+		this.expirationDate = expirationDate;
 	}
 
 	public Boolean getIsDelete() {

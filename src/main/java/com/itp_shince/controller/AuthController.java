@@ -119,20 +119,27 @@ public class AuthController {
 				} else if (objectOTPReponse.getResponseStatus() == 500) {
 					return new ResponseEntity<>(objectOTPReponse, responseHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
 				} else {
-					Authentication authentication = authenticationManager.authenticate(
-							new UsernamePasswordAuthenticationToken(user.getUsPhoneNo(), loginRequest.getPassword()));
-					SecurityContextHolder.getContext().setAuthentication(authentication);
-					UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-					String jwt = jwtUtils.generateJwtToken(userDetails);
-					List<String> roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
-							.collect(Collectors.toList());
-					RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId(), jwt);
-					Users users = userService.getById(userDetails.getId());
-					JwtResponse jwtResponse = new JwtResponse(jwt, refreshToken.getJwtId(), userDetails.getId(),
-							userDetails.getUsername(), userDetails.getPhoneNumber(), users.getIsAdmin(), roles);
-					sessService.saveSession(jwtResponse.getId() + jwtResponse.getUserName(), jwtResponse);
-					ObjectReponse objectReponse = new ObjectReponse("Success", 200, jwtResponse, 120, "Minute");
-					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
+					if (user.getIsBlock() == false) {
+						Authentication authentication = authenticationManager
+								.authenticate(new UsernamePasswordAuthenticationToken(user.getUsPhoneNo(),
+										loginRequest.getPassword()));
+						SecurityContextHolder.getContext().setAuthentication(authentication);
+						UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+						String jwt = jwtUtils.generateJwtToken(userDetails);
+						List<String> roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
+								.collect(Collectors.toList());
+						RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId(), jwt);
+						Users users = userService.getById(userDetails.getId());
+						JwtResponse jwtResponse = new JwtResponse(jwt, refreshToken.getJwtId(), userDetails.getId(),
+								userDetails.getUsername(), userDetails.getPhoneNumber(), users.getIsAdmin(), roles);
+						sessService.saveSession(jwtResponse.getId() + jwtResponse.getUserName(), jwtResponse);
+						ObjectReponse objectReponse = new ObjectReponse("Success", 200, jwtResponse, 120, "Minute");
+						return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
+					} else {
+						ObjectReponse objectReponse = new ObjectReponse("Account has been locked ", 404, 0, 120,
+								"Minute");
+						return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
+					}
 				}
 			} else {
 				ObjectReponse objectReponse = new ObjectReponse("Phone number or Password error", 404, 0, 120,
@@ -146,14 +153,19 @@ public class AuthController {
 	}
 
 	@PostMapping("/checkLogin")
-	public ResponseEntity<?> check_user(@RequestBody CheckLoginRequest checkLoginRequest, HttpServletRequest request) {
+	public ResponseEntity<?> check_login(@RequestBody CheckLoginRequest checkLoginRequest, HttpServletRequest request) {
 		try {
 			Users user = userService.getByPhoneNumber(checkLoginRequest.getPhoneNumber());
 			if (user != null) {
 				authenticationManager.authenticate(
 						new UsernamePasswordAuthenticationToken(user.getUsPhoneNo(), checkLoginRequest.getPassword()));
-				ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
-				return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
+				if (user.getIsBlock() == false) {
+					ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
+					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
+				} else {
+					ObjectReponse objectReponse = new ObjectReponse("Account has been locked ", 404, 0, 120, "Minute");
+					return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.NOT_FOUND);
+				}
 			} else {
 				ObjectReponse objectReponse = new ObjectReponse("Phone number or Password error", 404, 0, 120,
 						"Minute");
@@ -266,6 +278,7 @@ public class AuthController {
 							user.setIsDelete(false);
 							user.setCreatedAt(date);
 							user.setUserRoles(roles);
+							user.setIsBlock(false);
 							userService.create(user);
 							ObjectReponse objectReponse = new ObjectReponse("Success", 200, 0, 120, "Minute");
 							return new ResponseEntity<>(objectReponse, responseHeaders, HttpStatus.OK);
